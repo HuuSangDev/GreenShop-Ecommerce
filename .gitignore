@@ -1,0 +1,56 @@
+### Java & Maven ###
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/wrapper/maven-wrapper.jar
+/mvnw
+/mvnw.cmd
+.mtl.xml
+.IncrementalCache.obj
+
+### Local Configuration (CỰC KỲ QUAN TRỌNG) ###
+# Chặn các file chứa mật khẩu DB cá nhân của từng thành viên
+application-local.properties
+application-local.yml
+.env
+*.log
+logs/
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+# Nếu team dùng Shared Indexes
+.msvc/
+
+### Eclipse / STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### VS Code ###
+.vscode/
+*.code-workspace
+.history/
+
+### OS Specific ###
+.DS_Store
+Thumbs.db
+
+### Frontend (Nếu sau này team gộp chung code React/Vue vào cùng Repo) ###
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
