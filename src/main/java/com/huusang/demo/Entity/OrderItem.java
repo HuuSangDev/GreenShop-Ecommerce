@@ -19,12 +19,12 @@ public class OrderItem {
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id")
-    Order order;
+    @JoinColumn(name = "shop_order_id", nullable = false)
+    ShopOrder shopOrder;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
-    Product product;
+    @JoinColumn(name = "product_variant_id", nullable = false)
+    ProductVariant productVariant;
 
     Integer quantity;
     BigDecimal priceAtPurchase; // Lưu giá lúc mua để tránh kiện cáo khi shop đổi giá

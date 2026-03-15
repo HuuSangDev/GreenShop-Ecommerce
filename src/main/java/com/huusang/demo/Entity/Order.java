@@ -35,6 +35,8 @@ public class Order {
     String paymentMethod;
     LocalDateTime createdAt = LocalDateTime.now();
 
+
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
-    List<OrderItem> items;
+    List<ShopOrder> orders;
 }
