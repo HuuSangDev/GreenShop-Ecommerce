@@ -27,11 +27,11 @@ import javax.crypto.spec.SecretKeySpec;
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor // BẮT BUỘC CÓ: Để Spring tự động Inject Repository
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class SecurityConfig {
 
-    InvalidatedTokenRepository invalidatedTokenRepository;
+    final InvalidatedTokenRepository invalidatedTokenRepository;
 
     @NonFinal
     @Value("${jwt.signerKey}")

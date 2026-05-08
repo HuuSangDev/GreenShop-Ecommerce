@@ -1,5 +1,6 @@
 package com.huusang.demo.Entity;
 
+import com.huusang.demo.Enum.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -30,8 +31,12 @@ public class ShopOrder {
     @JoinColumn(name = "shop_id", nullable = false)
     Shop shop;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
     // Trạng thái độc lập của gói hàng (Shop A đang giao, Shop B có thể đã hủy)
-    String status; // PENDING, PREPARING, SHIPPING, DELIVERED, CANCELLED
+    OrderStatus status; // PENDING, PREPARING, SHIPPING, DELIVERED, CANCELLED
 
     // Tiền ship riêng của gói hàng này
     @Column(name = "shipping_fee")

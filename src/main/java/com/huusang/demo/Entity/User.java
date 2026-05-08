@@ -35,7 +35,6 @@ public class User {
     String fullName;
 
     boolean active = true;
-
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_roles",

@@ -23,9 +23,6 @@ public class ProductVariant {
     @JoinColumn(name = "product_id")
     Product product;
 
-    @OneToMany(cascade = CascadeType.ALL)
-    List<OrderItem> orderItems;
-
     @Column(name = "variant_name")
     String variantName; // Ví dụ: "Màu Xanh, 128GB" hoặc "Điện thoại A"
 

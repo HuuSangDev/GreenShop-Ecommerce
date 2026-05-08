@@ -27,5 +27,9 @@ public class OrderItem {
     ProductVariant productVariant;
 
     Integer quantity;
-    BigDecimal priceAtPurchase; // Lưu giá lúc mua để tránh kiện cáo khi shop đổi giá
+    @Column(name = "price_at_buy", nullable = false, precision = 15, scale = 2)
+    BigDecimal priceAtBuy;          // Giá chốt tại thời điểm mua
+
+    @Column(name = "discount_amount", precision = 15, scale = 2)
+    BigDecimal discountAmount = BigDecimal.ZERO; // Phần voucher phân bổ (prorating)
 }

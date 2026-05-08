@@ -26,6 +26,10 @@ public class Review {
     @JoinColumn(name = "user_id")
     User user;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_item_id", nullable = false)
+     OrderItem orderItem;
+
     Integer rating; // 1-5 sao
     String comment;
     LocalDateTime createdAt = LocalDateTime.now();

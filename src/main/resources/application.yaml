@@ -4,6 +4,8 @@ server:
   servlet:
     context-path: /ecommerce
 spring:
+  profiles:
+    active: local
   application:
     name: E-commerce
   datasource:

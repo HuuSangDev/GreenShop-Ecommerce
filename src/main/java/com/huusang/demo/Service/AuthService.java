@@ -73,26 +73,18 @@ public class AuthService {
                 .build();
 
     }
-
-    // Nhớ Inject InvalidatedTokenRepository và RefreshTokenRepository vào nhé
-
     public void logout(LogoutRequest request, String accessToken) {
         try {
-            // 1. Phân tích cái Access Token (Dùng thư viện Nimbus bạn đang có)
             SignedJWT signToken = SignedJWT.parse(accessToken);
 
             String jwtId = signToken.getJWTClaimsSet().getJWTID();
             Date expiryTime = signToken.getJWTClaimsSet().getExpirationTime();
-
-            // 2. Tống mã số thẻ này vào Sổ Đen
             InvalidatedToken invalidatedToken = InvalidatedToken.builder()
                     .id(jwtId)
                     .expiryTime(expiryTime)
                     .build();
             invalidatedTokenRepository.save(invalidatedToken);
 
-            // 3. Xóa Refresh Token dưới DB để vĩnh viễn không đổi được thẻ mới nữa
-            // (Bạn nhớ tạo hàm deleteByToken trong RefreshTokenRepository nhé)
             refreshTokenRepository.deleteByToken(request.getRefreshToken());
 
         } catch (Exception e) {
@@ -107,28 +99,25 @@ public class AuthService {
 
         if (refreshToken.getExpiryDate().compareTo(Instant.now()) < 0) {
             refreshTokenRepository.delete(refreshToken); // Dọn rác
-            throw new AppException(ErrorCode.UNAUTHENTICATED); // Đuổi ra ngoài bắt đăng nhập lại!
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
-
         User user= refreshToken.getUser();
         var newAccessToken=generateToken(user);
         UserResponse userResponse = userMapper.toUserResponse(user);
         return AuthResponse.builder()
                 .token(newAccessToken)
-                .refreshToken(refreshToken.getToken()) // Trả lại cái Refresh Token cũ để lần sau xài tiếp
+                .refreshToken(refreshToken.getToken())
                 .authenticated(true)
                 .user(userResponse)
                 .build();
-
     }
-
     public RefreshToken createRefreshToken(String userId) {
         User user = userRepository.findById(userId).orElseThrow();
 
         RefreshToken refreshToken = RefreshToken.builder()
                 .user(user)
-                .token(UUID.randomUUID().toString()) // Random 1 chuỗi ngẫu nhiên không ai đoán được
-                .expiryDate(Instant.now().plus(7, ChronoUnit.DAYS)) // Sống lâu tới 7 ngày
+                .token(UUID.randomUUID().toString())
+                .expiryDate(Instant.now().plus(7, ChronoUnit.DAYS))
                 .build();
 
         return refreshTokenRepository.save(refreshToken);
@@ -167,15 +156,11 @@ public class AuthService {
     private String buildScope(User user) {
         StringJoiner stringJoiner = new StringJoiner(" ");
 
-        // 1. Kiểm tra xem user có danh sách role nào không
+
         if (user.getRoles() != null && !user.getRoles().isEmpty()) {
-
-            // 2. Lặp qua từng Role của User
             user.getRoles().forEach(role -> {
-
                 stringJoiner.add("ROLE_" + role.getName());
 
-                // 3. Lặp qua danh sách Permission của CÁI ROLE ĐÓ
                 if (role.getPermissions() != null) {
                     role.getPermissions().forEach(permission -> {
                         // Nhét tên Permission vào (Để trần, không gắn ROLE_)

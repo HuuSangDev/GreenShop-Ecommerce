@@ -1,5 +1,6 @@
 package com.huusang.demo.Enum;
 
 public enum OrderStatus {
-    PENDING, PROCESSING, SHIPPED, DELIVERED, CANCELLED
+    PENDING, PREPARING, READY_TO_SHIP,
+    SHIPPED, DELIVERED, COMPLETED, CANCELLED
 }
