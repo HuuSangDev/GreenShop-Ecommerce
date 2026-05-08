@@ -18,8 +18,10 @@ buildNumber.properties
 application-local.properties
 application-local.yml
 .env
+src/main/resources/application-local.yaml
 *.log
 logs/
+
 
 ### IntelliJ IDEA ###
 .idea/

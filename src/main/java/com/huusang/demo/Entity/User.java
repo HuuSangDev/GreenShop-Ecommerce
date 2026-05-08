@@ -5,6 +5,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 @Entity
 @Data
@@ -34,7 +35,6 @@ public class User {
     String fullName;
 
     boolean active = true;
-
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_roles",
@@ -45,4 +45,9 @@ public class User {
 
     @Column(name = "created_at")
     LocalDateTime createdAt = LocalDateTime.now();
+
+    @OneToMany(mappedBy = "user",cascade = CascadeType.ALL)
+    List<RefreshToken> refreshTokens;
+
+
 }

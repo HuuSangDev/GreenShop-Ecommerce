@@ -19,13 +19,17 @@ public class OrderItem {
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id")
-    Order order;
+    @JoinColumn(name = "shop_order_id", nullable = false)
+    ShopOrder shopOrder;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
-    Product product;
+    @JoinColumn(name = "product_variant_id", nullable = false)
+    ProductVariant productVariant;
 
     Integer quantity;
-    BigDecimal priceAtPurchase; // Lưu giá lúc mua để tránh kiện cáo khi shop đổi giá
+    @Column(name = "price_at_buy", nullable = false, precision = 15, scale = 2)
+    BigDecimal priceAtBuy;          // Giá chốt tại thời điểm mua
+
+    @Column(name = "discount_amount", precision = 15, scale = 2)
+    BigDecimal discountAmount = BigDecimal.ZERO; // Phần voucher phân bổ (prorating)
 }
