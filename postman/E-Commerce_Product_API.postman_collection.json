@@ -1,0 +1,341 @@
+{
+  "info": {
+    "name": "E-Commerce Product API",
+    "description": "Collection để test Product Management APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "variantId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "shopId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Product Management",
+      "item": [
+        {
+          "name": "1. Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"iPhone 15 Pro Max\",\n  \"description\": \"Điện thoại cao cấp từ Apple với chip A17 Pro\",\n  \"price\": 29990000,\n  \"stockQuantity\": 100,\n  \"categoryId\": 1,\n  \"imageUrl\": \"https://cdn.tgdd.vn/Products/Images/42/305658/iphone-15-pro-max-blue-1.jpg\",\n  \"variants\": [\n    {\n      \"variantName\": \"Titan Tự Nhiên - 256GB\",\n      \"price\": 29990000,\n      \"stockQuantity\": 50,\n      \"sku\": \"IP15PM-TN-256\"\n    },\n    {\n      \"variantName\": \"Titan Xanh - 512GB\",\n      \"price\": 34990000,\n      \"stockQuantity\": 30,\n      \"sku\": \"IP15PM-TX-512\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"]
+            }
+          }
+        },
+        {
+          "name": "2. Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productName\": \"iPhone 15 Pro Max - Chính hãng VN/A\",\n  \"description\": \"Điện thoại cao cấp từ Apple - Bảo hành 12 tháng\",\n  \"price\": 28990000,\n  \"stockQuantity\": 120,\n  \"categoryId\": 1,\n  \"imageUrl\": \"https://cdn.tgdd.vn/Products/Images/42/305658/iphone-15-pro-max-blue-1.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "3. Delete Product (Soft Delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "4. Get Product By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "5. Get Products By Shop",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/shop/{{shopId}}?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "shop", "{{shopId}}"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search & Filter",
+      "item": [
+        {
+          "name": "1. Search Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/search?keyword=iphone&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "search"],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "iphone"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Filter Products",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": 1,\n  \"shopId\": null,\n  \"minPrice\": 10000000,\n  \"maxPrice\": 30000000,\n  \"keyword\": \"iphone\",\n  \"page\": 0,\n  \"size\": 10,\n  \"sortBy\": \"price\",\n  \"sortDirection\": \"ASC\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products/filter",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "filter"]
+            }
+          }
+        },
+        {
+          "name": "3. Top Selling Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/top-selling?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "top-selling"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "shopId",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. New Arrivals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/new-arrivals?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "new-arrivals"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Product Variants",
+      "item": [
+        {
+          "name": "1. Add Variant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"variantName\": \"Titan Đen - 1TB\",\n  \"price\": 39990000,\n  \"stockQuantity\": 20,\n  \"sku\": \"IP15PM-TD-1TB\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId}}/variants",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{productId}}", "variants"]
+            }
+          }
+        },
+        {
+          "name": "2. Update Variant",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"variantName\": \"Titan Đen - 1TB (Giảm giá)\",\n  \"price\": 37990000,\n  \"stockQuantity\": 25,\n  \"sku\": \"IP15PM-TD-1TB\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products/variants/{{variantId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "variants", "{{variantId}}"]
+            }
+          }
+        },
+        {
+          "name": "3. Delete Variant",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/variants/{{variantId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "variants", "{{variantId}}"]
+            }
+          }
+        },
+        {
+          "name": "4. Update Stock",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/variants/{{variantId}}/stock?quantity=150",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "variants", "{{variantId}}", "stock"],
+              "query": [
+                {
+                  "key": "quantity",
+                  "value": "150"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "1. Hide Product (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/{{productId}}/hide",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "{{productId}}", "hide"]
+            }
+          }
+        },
+        {
+          "name": "2. Get All Products (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/admin/all?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "admin", "all"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
