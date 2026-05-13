@@ -1,8 +1,15 @@
+server:
+  address: 0.0.0.0
+  port: 8080
+  servlet:
+    context-path: /ecommerce
 spring:
+  profiles:
+    active: local
   application:
     name: E-commerce
   datasource:
-    url: jdbc:mysql://localhost:3306/Ecommorce?useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/Ecommerce?useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -15,3 +22,4 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
+

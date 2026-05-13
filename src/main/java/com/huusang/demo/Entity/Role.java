@@ -1,5 +1,6 @@
 package com.huusang.demo.Entity;
 
+import com.huusang.demo.Enum.RoleName;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -14,8 +15,8 @@ import java.util.Set;
 @Table(name = "roles")
 public class Role {
     @Id
-     String name; // Ví dụ: ADMIN, SELLER, BUYER
-     String description;
+    String name; // Ví dụ: ADMIN, SELLER, BUYER
+    String description;
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "role_permissions",

@@ -5,6 +5,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -32,4 +33,7 @@ public class Shop {
 
     @Column(name = "created_at")
     LocalDateTime createdAt = LocalDateTime.now();
+
+    @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL)
+    List<ShopOrder> orders;
 }

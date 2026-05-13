@@ -4,6 +4,11 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 @Entity
 @Data
 @NoArgsConstructor
@@ -13,16 +18,22 @@ import lombok.experimental.FieldDefaults;
 @Table(name = "carts")
 public class Cart {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long id;
+    @Column(length = 36)
+    private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    User user;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
-    Product product;
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
-    Integer quantity;
+    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<CartItem> items = new ArrayList<>();
+
+    @PrePersist
+    protected void onCreate() {
+        this.id = UUID.randomUUID().toString();
+        this.createdAt = LocalDateTime.now();
+    }
 }

@@ -25,16 +25,28 @@ public class Order {
     @JoinColumn(name = "buyer_id")
     User buyer;
 
-    @Column(name = "total_amount")
-    BigDecimal totalAmount;
+    @Column(name = "total_amount", nullable = false, precision = 15, scale = 2)
+    BigDecimal totalAmount;         // Tổng tiền gốc (trước giảm)
+
+    @Column(name = "discount_amount", precision = 15, scale = 2)
+    BigDecimal discountAmount = BigDecimal.ZERO;
+
+    @Column(name = "final_amount", nullable = false, precision = 15, scale = 2)
+    BigDecimal finalAmount;         // Số tiền thực trả = total - discoun
 
     @Enumerated(EnumType.STRING)
     OrderStatus status = OrderStatus.PENDING;
-
-    String shippingAddress;
     String paymentMethod;
     LocalDateTime createdAt = LocalDateTime.now();
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
-    List<OrderItem> items;
+    List<ShopOrder> shopOrders ;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shipping_address_id")
+    Address shippingAddress;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "voucher_id")
+    private Voucher voucher;
 }
