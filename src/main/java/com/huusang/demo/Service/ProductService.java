@@ -1,0 +1,354 @@
+package com.huusang.demo.Service;
+
+import com.huusang.demo.DTO.Request.*;
+import com.huusang.demo.DTO.Response.ProductResponse;
+import com.huusang.demo.DTO.Response.ProductVariantResponse;
+import com.huusang.demo.Entity.*;
+import com.huusang.demo.Exception.BadRequestException;
+import com.huusang.demo.Exception.ResourceNotFoundException;
+import com.huusang.demo.Exception.UnauthorizedException;
+import com.huusang.demo.Mapper.ProductMapper;
+import com.huusang.demo.Repository.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class ProductService {
+
+    private final ProductRepository productRepository;
+    private final ProductVariantRepository variantRepository;
+    private final ShopRepository shopRepository;
+    private final CategoryRepository categoryRepository;
+    private final ProductMapper productMapper;
+
+    /**
+     * Tạo sản phẩm mới kèm variants
+     * Chỉ seller có shop mới được tạo
+     */
+    @Transactional
+    public ProductResponse createProduct(ProductCreateRequest request, String userId) {
+        // Kiểm tra shop của user
+        Shop shop = shopRepository.findByOwnerId(userId)
+                .orElseThrow(() -> new BadRequestException("Bạn chưa có shop. Vui lòng tạo shop trước"));
+
+        // Kiểm tra category
+        Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục"));
+
+        // Tạo product
+        Product product = Product.builder()
+                .shop(shop)
+                .category(category)
+                .productName(request.getProductName())
+                .description(request.getDescription())
+                .price(request.getPrice())
+                .stockQuantity(request.getStockQuantity())
+                .imageUrl(request.getImageUrl())
+                .available(true)
+                .build();
+
+        product = productRepository.save(product);
+
+        // Tạo variants nếu có
+        if (request.getVariants() != null && !request.getVariants().isEmpty()) {
+            List<ProductVariant> variants = new ArrayList<>();
+            for (ProductVariantRequest variantReq : request.getVariants()) {
+                ProductVariant variant = ProductVariant.builder()
+                        .product(product)
+                        .variantName(variantReq.getVariantName())
+                        .price(variantReq.getPrice())
+                        .stockQuantity(variantReq.getStockQuantity())
+                        .sku(variantReq.getSku())
+                        .build();
+                variants.add(variant);
+            }
+            variants = variantRepository.saveAll(variants);
+            product.setVariants(variants);
+        }
+
+        return productMapper.toResponse(product);
+    }
+
+    /**
+     * Cập nhật thông tin sản phẩm
+     * Chỉ chủ shop mới được sửa
+     */
+    @Transactional
+    public ProductResponse updateProduct(Long productId, ProductUpdateRequest request, String userId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+
+        // Kiểm tra quyền sở hữu
+        if (!product.getShop().getOwner().getId().equals(userId)) {
+            throw new UnauthorizedException("Bạn không có quyền sửa sản phẩm này");
+        }
+
+        // Cập nhật các trường
+        if (request.getProductName() != null) {
+            product.setProductName(request.getProductName());
+        }
+        if (request.getDescription() != null) {
+            product.setDescription(request.getDescription());
+        }
+        if (request.getPrice() != null) {
+            product.setPrice(request.getPrice());
+        }
+        if (request.getStockQuantity() != null) {
+            product.setStockQuantity(request.getStockQuantity());
+        }
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục"));
+            product.setCategory(category);
+        }
+        if (request.getImageUrl() != null) {
+            product.setImageUrl(request.getImageUrl());
+        }
+
+        product = productRepository.save(product);
+        return productMapper.toResponse(product);
+    }
+
+    /**
+     * Soft delete sản phẩm (ẩn sản phẩm)
+     * Chỉ chủ shop mới được xóa
+     */
+    @Transactional
+    public void deleteProduct(Long productId, String userId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+
+        // Kiểm tra quyền sở hữu
+        if (!product.getShop().getOwner().getId().equals(userId)) {
+            throw new UnauthorizedException("Bạn không có quyền xóa sản phẩm này");
+        }
+
+        // Soft delete
+        product.setAvailable(false);
+        productRepository.save(product);
+    }
+
+    /**
+     * Lấy chi tiết sản phẩm kèm variants
+     */
+    public ProductResponse getProductById(Long productId) {
+        Product product = productRepository.findByIdAndAvailableTrue(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+        return productMapper.toResponse(product);
+    }
+
+    /**
+     * Lấy danh sách sản phẩm của 1 shop (có phân trang)
+     */
+    public Page<ProductResponse> getProductsByShop(Long shopId, int page, int size) {
+        Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy shop"));
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Product> products = productRepository.findByShopAndAvailableTrue(shop, pageable);
+
+        return products.map(productMapper::toResponse);
+    }
+
+    /**
+     * Thêm variant mới vào sản phẩm
+     */
+    @Transactional
+    public ProductVariantResponse addVariant(Long productId, ProductVariantRequest request, String userId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+
+        // Kiểm tra quyền sở hữu
+        if (!product.getShop().getOwner().getId().equals(userId)) {
+            throw new UnauthorizedException("Bạn không có quyền thêm variant cho sản phẩm này");
+        }
+
+        // Kiểm tra SKU trùng
+        if (variantRepository.findBySku(request.getSku()).isPresent()) {
+            throw new BadRequestException("SKU đã tồn tại");
+        }
+
+        ProductVariant variant = ProductVariant.builder()
+                .product(product)
+                .variantName(request.getVariantName())
+                .price(request.getPrice())
+                .stockQuantity(request.getStockQuantity())
+                .sku(request.getSku())
+                .build();
+
+        variant = variantRepository.save(variant);
+        return productMapper.toVariantResponse(variant);
+    }
+
+    /**
+     * Cập nhật variant
+     */
+    @Transactional
+    public ProductVariantResponse updateVariant(Long variantId, ProductVariantUpdateRequest request, String userId) {
+        ProductVariant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy variant"));
+
+        // Kiểm tra quyền sở hữu
+        if (!variant.getProduct().getShop().getOwner().getId().equals(userId)) {
+            throw new UnauthorizedException("Bạn không có quyền sửa variant này");
+        }
+
+        // Cập nhật các trường
+        if (request.getVariantName() != null) {
+            variant.setVariantName(request.getVariantName());
+        }
+        if (request.getPrice() != null) {
+            variant.setPrice(request.getPrice());
+        }
+        if (request.getStockQuantity() != null) {
+            variant.setStockQuantity(request.getStockQuantity());
+        }
+        if (request.getSku() != null) {
+            // Kiểm tra SKU trùng
+            variantRepository.findBySku(request.getSku()).ifPresent(existing -> {
+                if (!existing.getId().equals(variantId)) {
+                    throw new BadRequestException("SKU đã tồn tại");
+                }
+            });
+            variant.setSku(request.getSku());
+        }
+
+        variant = variantRepository.save(variant);
+        return productMapper.toVariantResponse(variant);
+    }
+
+    /**
+     * Xóa variant (chặn nếu đang trong đơn hàng active)
+     */
+    @Transactional
+    public void deleteVariant(Long variantId, String userId) {
+        ProductVariant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy variant"));
+
+        // Kiểm tra quyền sở hữu
+        if (!variant.getProduct().getShop().getOwner().getId().equals(userId)) {
+            throw new UnauthorizedException("Bạn không có quyền xóa variant này");
+        }
+
+        // Kiểm tra variant có trong đơn hàng active không
+        if (variantRepository.isVariantInActiveOrder(variant.getProduct().getId())) {
+            throw new BadRequestException("Không thể xóa variant đang có trong đơn hàng chưa hoàn thành");
+        }
+
+        variantRepository.delete(variant);
+    }
+
+    /**
+     * Cập nhật tồn kho thủ công
+     */
+    @Transactional
+    public ProductVariantResponse updateStock(Long variantId, Integer quantity, String userId) {
+        ProductVariant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy variant"));
+
+        // Kiểm tra quyền sở hữu
+        if (!variant.getProduct().getShop().getOwner().getId().equals(userId)) {
+            throw new UnauthorizedException("Bạn không có quyền cập nhật tồn kho");
+        }
+
+        if (quantity < 0) {
+            throw new BadRequestException("Số lượng tồn kho không được âm");
+        }
+
+        variant.setStockQuantity(quantity);
+        variant = variantRepository.save(variant);
+        return productMapper.toVariantResponse(variant);
+    }
+
+    /**
+     * Tìm kiếm sản phẩm theo keyword
+     */
+    public Page<ProductResponse> searchProducts(String keyword, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Product> products = productRepository.searchProducts(keyword, pageable);
+        return products.map(productMapper::toResponse);
+    }
+
+    /**
+     * Lọc sản phẩm theo nhiều tiêu chí
+     */
+    public Page<ProductResponse> filterProducts(ProductFilterRequest request) {
+        Sort sort = request.getSortDirection().equalsIgnoreCase("ASC") 
+                ? Sort.by(request.getSortBy()).ascending()
+                : Sort.by(request.getSortBy()).descending();
+
+        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), sort);
+
+        Page<Product> products = productRepository.filterProducts(
+                request.getCategoryId(),
+                request.getShopId(),
+                request.getMinPrice(),
+                request.getMaxPrice(),
+                pageable
+        );
+
+        return products.map(productMapper::toResponse);
+    }
+
+    /**
+     * Sản phẩm bán chạy nhất
+     */
+    public Page<ProductResponse> getTopSellingProducts(int page, int size, Long shopId) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Product> products;
+
+        if (shopId != null) {
+            products = productRepository.findTopSellingProductsByShop(shopId, pageable);
+        } else {
+            products = productRepository.findTopSellingProducts(pageable);
+        }
+
+        return products.map(productMapper::toResponse);
+    }
+
+    /**
+     * Sản phẩm mới nhất
+     */
+    public Page<ProductResponse> getNewArrivals(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Product> products = productRepository.findByAvailableTrueOrderByCreatedAtDesc(pageable);
+        return products.map(productMapper::toResponse);
+    }
+
+    /**
+     * Admin ẩn sản phẩm vi phạm
+     */
+    @Transactional
+    public void adminHideProduct(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+        product.setAvailable(false);
+        productRepository.save(product);
+    }
+
+    @Transactional
+    public void adminUnhideProduct(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+        product.setAvailable(true);
+        productRepository.save(product);
+    }
+
+    /**
+     * Admin lấy tất cả sản phẩm (kể cả ẩn)
+     */
+    public Page<ProductResponse> getAllProductsForAdmin(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Product> products = productRepository.findAll(pageable);
+        return products.map(productMapper::toResponse);
+    }
+}

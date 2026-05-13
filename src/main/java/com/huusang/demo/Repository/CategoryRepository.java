@@ -2,14 +2,18 @@ package com.huusang.demo.Repository;
 
 import com.huusang.demo.Entity.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
+<<<<<<< HEAD
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+=======
+>>>>>>> 2fcffb4418523408e449bdcfc70909241c4c77c4
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
+<<<<<<< HEAD
 
     // Lấy tất cả root categories (không có parent)
     List<Category> findByParentIsNullAndIsActiveTrueOrderBySortOrderAsc();
@@ -53,4 +57,12 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     // Kiểm tra slug trùng
     boolean existsBySlugAndIdNot(String slug, Long id);
     boolean existsBySlug(String slug);
+=======
+    
+    // Tìm danh mục cha (parent = null)
+    List<Category> findByParentIsNull();
+    
+    // Tìm danh mục con theo parent
+    List<Category> findByParentId(Long parentId);
+>>>>>>> 2fcffb4418523408e449bdcfc70909241c4c77c4
 }
