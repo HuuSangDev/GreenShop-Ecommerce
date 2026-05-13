@@ -10,12 +10,25 @@ public enum ErrorCode {
     PHONE_NUMBER_EXISTED(104,"phone number existed "),
     UNAUTHENTICATED(104,"unauthenticated "),
 
+    //CATEGORY
+    CATEGORY_NOT_FOUND(201, "Category not found"),
+    CATEGORY_HAS_CHILDREN(202, "Cannot delete category that has subcategories"),
+    CATEGORY_HAS_PRODUCTS(203, "Cannot delete category that has products"),
+    CATEGORY_NAME_EXISTED(204, "Category name already exists under the same parent"),
+    CIRCULAR_CATEGORY_REFERENCE(205, "Category cannot be its own ancestor"),
+
+    //CART
+    CART_NOT_FOUND(301, "Cart not found"),
+    CART_ITEM_NOT_FOUND(302, "Cart item not found"),
+    PRODUCT_NOT_FOUND(303, "Product not found"),
+    VARIANT_NOT_FOUND(304, "Product variant not found"),
+    OUT_OF_STOCK(305, "Product is out of stock"),
+    INSUFFICIENT_STOCK(306, "Requested quantity exceeds available stock"),
+    INVALID_QUANTITY(307, "Quantity must be greater than 0"),
+    VARIANT_NOT_BELONG_TO_PRODUCT(308, "Variant does not belong to the specified product"),
+    PRODUCT_UNAVAILABLE(309, "Product is currently unavailable"),
 
     //ORDER
-
-
-    //PRODUCT
-
 
 
     ;

@@ -32,4 +32,8 @@ public class ProductVariant {
     Integer stockQuantity; // Kho riêng cho bản này
 
     String sku; // Mã định danh kho (Stock Keeping Unit)
+
+    // Optimistic locking — tránh race condition khi nhiều user cùng thêm vào giỏ
+    @Version
+    Long version;
 }
