@@ -1,6 +1,13 @@
 package com.huusang.demo.Repository;
 
 import com.huusang.demo.Entity.Product;
+<<<<<<< HEAD
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface ProductRepository extends JpaRepository<Product, Long> {
+=======
 import com.huusang.demo.Entity.Shop;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -59,4 +66,5 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     
     // Admin: Tất cả sản phẩm (kể cả ẩn)
     Page<Product> findAll(Pageable pageable);
+>>>>>>> 2fcffb4418523408e449bdcfc70909241c4c77c4
 }
