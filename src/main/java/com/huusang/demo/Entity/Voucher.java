@@ -18,7 +18,6 @@ import java.util.UUID;
 @Table(name = "vouchers")
 public class Voucher {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private String id;
 
     // NULL = voucher toàn sàn (Admin tạo)
@@ -55,7 +54,8 @@ public class Voucher {
     @Column(name = "expires_at", nullable = false)
     LocalDateTime expiresAt;
 
-
+    @Column(nullable = false)
+    boolean active = true;
 
     @PrePersist
     protected void onCreate() { this.id = UUID.randomUUID().toString(); }

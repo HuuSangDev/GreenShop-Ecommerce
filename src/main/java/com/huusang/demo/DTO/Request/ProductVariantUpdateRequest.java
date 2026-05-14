@@ -2,10 +2,8 @@ package com.huusang.demo.DTO.Request;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 
@@ -13,15 +11,16 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class ProductVariantUpdateRequest {
-    
-    private String variantName;
-    
+
+    String variantName;
+
     @DecimalMin(value = "0.0", inclusive = false, message = "Giá phải lớn hơn 0")
-    private BigDecimal price;
-    
+    BigDecimal price;
+
     @Min(value = 0, message = "Số lượng tồn kho không được âm")
-    private Integer stockQuantity;
-    
-    private String sku;
+    Integer stockQuantity;
+
+    String sku;
 }

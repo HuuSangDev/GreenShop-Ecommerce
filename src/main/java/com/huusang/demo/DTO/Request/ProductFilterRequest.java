@@ -1,9 +1,7 @@
 package com.huusang.demo.DTO.Request;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 
@@ -11,17 +9,16 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class ProductFilterRequest {
-    
-    private Long categoryId;
-    private Long shopId;
-    private BigDecimal minPrice;
-    private BigDecimal maxPrice;
-    private String keyword;
-    
-    // Pagination
-    private Integer page = 0;
-    private Integer size = 10;
-    private String sortBy = "createdAt";
-    private String sortDirection = "DESC";
+
+    Long categoryId;
+    Long shopId;
+    BigDecimal minPrice;
+    BigDecimal maxPrice;
+
+    Integer page = 0;
+    Integer size = 10;
+    String sortBy = "createdAt";
+    String sortDirection = "DESC";
 }

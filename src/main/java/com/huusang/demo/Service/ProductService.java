@@ -4,21 +4,22 @@ import com.huusang.demo.DTO.Request.*;
 import com.huusang.demo.DTO.Response.ProductResponse;
 import com.huusang.demo.DTO.Response.ProductVariantResponse;
 import com.huusang.demo.Entity.*;
-import com.huusang.demo.Exception.BadRequestException;
-import com.huusang.demo.Exception.ResourceNotFoundException;
-import com.huusang.demo.Exception.UnauthorizedException;
-import com.huusang.demo.Mapper.ProductMapper;
+import com.huusang.demo.Enum.OrderStatus;
+import com.huusang.demo.Exception.AppException;
+import com.huusang.demo.Exception.ErrorCode;
 import com.huusang.demo.Repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,23 +29,74 @@ public class ProductService {
     private final ProductVariantRepository variantRepository;
     private final ShopRepository shopRepository;
     private final CategoryRepository categoryRepository;
-    private final ProductMapper productMapper;
+    private final UserRepository userRepository;
 
-    /**
-     * Tạo sản phẩm mới kèm variants
-     * Chỉ seller có shop mới được tạo
-     */
+    // ==================== HELPERS ====================
+
+    private String getCurrentUserId() {
+        // JWT subject là email (xem AuthService.generateToken)
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND))
+                .getId();
+    }
+
+    private Shop getShopByUserId(String userId) {
+        return shopRepository.findByOwnerId(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.SHOP_NOT_OWNED));
+    }
+
+    private Product getProductOrThrow(Long productId) {
+        return productRepository.findById(productId)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+    }
+
+    private void checkProductOwnership(Product product, String userId) {
+        if (!product.getShop().getOwner().getId().equals(userId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED_PRODUCT);
+        }
+    }
+
+    private ProductVariantResponse toVariantResponse(ProductVariant v) {
+        return ProductVariantResponse.builder()
+                .id(v.getId())
+                .variantName(v.getVariantName())
+                .price(v.getPrice())
+                .stockQuantity(v.getStockQuantity())
+                .sku(v.getSku())
+                .build();
+    }
+
+    private ProductResponse toResponse(Product p) {
+        return ProductResponse.builder()
+                .id(p.getId())
+                .productName(p.getProductName())
+                .description(p.getDescription())
+                .price(p.getPrice())
+                .stockQuantity(p.getStockQuantity())
+                .imageUrl(p.getImageUrl())
+                .available(p.isAvailable())
+                .createdAt(p.getCreatedAt())
+                .shopId(p.getShop() != null ? p.getShop().getId() : null)
+                .shopName(p.getShop() != null ? p.getShop().getShopName() : null)
+                .categoryId(p.getCategory() != null ? p.getCategory().getId() : null)
+                .categoryName(p.getCategory() != null ? p.getCategory().getCategoryName() : null)
+                .variants(p.getVariants() != null
+                        ? p.getVariants().stream().map(this::toVariantResponse).collect(Collectors.toList())
+                        : null)
+                .build();
+    }
+
+    // ==================== SELLER ====================
+
     @Transactional
-    public ProductResponse createProduct(ProductCreateRequest request, String userId) {
-        // Kiểm tra shop của user
-        Shop shop = shopRepository.findByOwnerId(userId)
-                .orElseThrow(() -> new BadRequestException("Bạn chưa có shop. Vui lòng tạo shop trước"));
+    public ProductResponse createProduct(ProductCreateRequest request) {
+        String userId = getCurrentUserId();
+        Shop shop = getShopByUserId(userId);
 
-        // Kiểm tra category
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục"));
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
 
-        // Tạo product
         Product product = Product.builder()
                 .shop(shop)
                 .category(category)
@@ -58,123 +110,109 @@ public class ProductService {
 
         product = productRepository.save(product);
 
-        // Tạo variants nếu có
         if (request.getVariants() != null && !request.getVariants().isEmpty()) {
             List<ProductVariant> variants = new ArrayList<>();
-            for (ProductVariantRequest variantReq : request.getVariants()) {
-                ProductVariant variant = ProductVariant.builder()
+            for (ProductVariantRequest vr : request.getVariants()) {
+                if (variantRepository.existsBySku(vr.getSku())) {
+                    throw new AppException(ErrorCode.SKU_EXISTED);
+                }
+                variants.add(ProductVariant.builder()
                         .product(product)
-                        .variantName(variantReq.getVariantName())
-                        .price(variantReq.getPrice())
-                        .stockQuantity(variantReq.getStockQuantity())
-                        .sku(variantReq.getSku())
-                        .build();
-                variants.add(variant);
+                        .variantName(vr.getVariantName())
+                        .price(vr.getPrice())
+                        .stockQuantity(vr.getStockQuantity())
+                        .sku(vr.getSku())
+                        .build());
             }
-            variants = variantRepository.saveAll(variants);
-            product.setVariants(variants);
+            product.setVariants(variantRepository.saveAll(variants));
         }
 
-        return productMapper.toResponse(product);
+        return toResponse(product);
     }
 
-    /**
-     * Cập nhật thông tin sản phẩm
-     * Chỉ chủ shop mới được sửa
-     */
     @Transactional
-    public ProductResponse updateProduct(Long productId, ProductUpdateRequest request, String userId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+    public ProductResponse updateProduct(Long productId, ProductUpdateRequest request) {
+        String userId = getCurrentUserId();
+        Product product = getProductOrThrow(productId);
+        checkProductOwnership(product, userId);
 
-        // Kiểm tra quyền sở hữu
-        if (!product.getShop().getOwner().getId().equals(userId)) {
-            throw new UnauthorizedException("Bạn không có quyền sửa sản phẩm này");
-        }
-
-        // Cập nhật các trường
-        if (request.getProductName() != null) {
-            product.setProductName(request.getProductName());
-        }
-        if (request.getDescription() != null) {
-            product.setDescription(request.getDescription());
-        }
-        if (request.getPrice() != null) {
-            product.setPrice(request.getPrice());
-        }
-        if (request.getStockQuantity() != null) {
-            product.setStockQuantity(request.getStockQuantity());
-        }
+        if (request.getProductName() != null)  product.setProductName(request.getProductName());
+        if (request.getDescription() != null)  product.setDescription(request.getDescription());
+        if (request.getPrice() != null)        product.setPrice(request.getPrice());
+        if (request.getStockQuantity() != null) product.setStockQuantity(request.getStockQuantity());
+        if (request.getImageUrl() != null)     product.setImageUrl(request.getImageUrl());
         if (request.getCategoryId() != null) {
             Category category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục"));
+                    .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
             product.setCategory(category);
         }
-        if (request.getImageUrl() != null) {
-            product.setImageUrl(request.getImageUrl());
-        }
 
-        product = productRepository.save(product);
-        return productMapper.toResponse(product);
+        return toResponse(productRepository.save(product));
     }
 
-    /**
-     * Soft delete sản phẩm (ẩn sản phẩm)
-     * Chỉ chủ shop mới được xóa
-     */
     @Transactional
-    public void deleteProduct(Long productId, String userId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
-
-        // Kiểm tra quyền sở hữu
-        if (!product.getShop().getOwner().getId().equals(userId)) {
-            throw new UnauthorizedException("Bạn không có quyền xóa sản phẩm này");
-        }
-
-        // Soft delete
+    public void deleteProduct(Long productId) {
+        String userId = getCurrentUserId();
+        Product product = getProductOrThrow(productId);
+        checkProductOwnership(product, userId);
         product.setAvailable(false);
         productRepository.save(product);
     }
 
-    /**
-     * Lấy chi tiết sản phẩm kèm variants
-     */
+    // ==================== PUBLIC ====================
+
     public ProductResponse getProductById(Long productId) {
         Product product = productRepository.findByIdAndAvailableTrue(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
-        return productMapper.toResponse(product);
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+        return toResponse(product);
     }
 
-    /**
-     * Lấy danh sách sản phẩm của 1 shop (có phân trang)
-     */
     public Page<ProductResponse> getProductsByShop(Long shopId, int page, int size) {
         Shop shop = shopRepository.findById(shopId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy shop"));
-
+                .orElseThrow(() -> new AppException(ErrorCode.SHOP_NOT_FOUND));
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Product> products = productRepository.findByShopAndAvailableTrue(shop, pageable);
-
-        return products.map(productMapper::toResponse);
+        return productRepository.findByShopAndAvailableTrue(shop, pageable).map(this::toResponse);
     }
 
-    /**
-     * Thêm variant mới vào sản phẩm
-     */
-    @Transactional
-    public ProductVariantResponse addVariant(Long productId, ProductVariantRequest request, String userId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+    public Page<ProductResponse> searchProducts(String keyword, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return productRepository.searchProducts(keyword, pageable).map(this::toResponse);
+    }
 
-        // Kiểm tra quyền sở hữu
-        if (!product.getShop().getOwner().getId().equals(userId)) {
-            throw new UnauthorizedException("Bạn không có quyền thêm variant cho sản phẩm này");
+    public Page<ProductResponse> filterProducts(ProductFilterRequest request) {
+        Sort sort = request.getSortDirection().equalsIgnoreCase("ASC")
+                ? Sort.by(request.getSortBy()).ascending()
+                : Sort.by(request.getSortBy()).descending();
+        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), sort);
+        return productRepository.filterProducts(
+                request.getCategoryId(), request.getShopId(),
+                request.getMinPrice(), request.getMaxPrice(), pageable
+        ).map(this::toResponse);
+    }
+
+    public Page<ProductResponse> getTopSellingProducts(int page, int size, Long shopId) {
+        Pageable pageable = PageRequest.of(page, size);
+        if (shopId != null) {
+            return productRepository.findTopSellingProductsByShop(shopId, pageable).map(this::toResponse);
         }
+        return productRepository.findTopSellingProducts(pageable).map(this::toResponse);
+    }
 
-        // Kiểm tra SKU trùng
-        if (variantRepository.findBySku(request.getSku()).isPresent()) {
-            throw new BadRequestException("SKU đã tồn tại");
+    public Page<ProductResponse> getNewArrivals(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return productRepository.findByAvailableTrueOrderByCreatedAtDesc(pageable).map(this::toResponse);
+    }
+
+    // ==================== VARIANT ====================
+
+    @Transactional
+    public ProductVariantResponse addVariant(Long productId, ProductVariantRequest request) {
+        String userId = getCurrentUserId();
+        Product product = getProductOrThrow(productId);
+        checkProductOwnership(product, userId);
+
+        if (variantRepository.existsBySku(request.getSku())) {
+            throw new AppException(ErrorCode.SKU_EXISTED);
         }
 
         ProductVariant variant = ProductVariant.builder()
@@ -185,170 +223,81 @@ public class ProductService {
                 .sku(request.getSku())
                 .build();
 
-        variant = variantRepository.save(variant);
-        return productMapper.toVariantResponse(variant);
+        return toVariantResponse(variantRepository.save(variant));
     }
 
-    /**
-     * Cập nhật variant
-     */
     @Transactional
-    public ProductVariantResponse updateVariant(Long variantId, ProductVariantUpdateRequest request, String userId) {
+    public ProductVariantResponse updateVariant(Long variantId, ProductVariantUpdateRequest request) {
+        String userId = getCurrentUserId();
         ProductVariant variant = variantRepository.findById(variantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy variant"));
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_VARIANT_NOT_FOUND));
+        checkProductOwnership(variant.getProduct(), userId);
 
-        // Kiểm tra quyền sở hữu
-        if (!variant.getProduct().getShop().getOwner().getId().equals(userId)) {
-            throw new UnauthorizedException("Bạn không có quyền sửa variant này");
-        }
-
-        // Cập nhật các trường
-        if (request.getVariantName() != null) {
-            variant.setVariantName(request.getVariantName());
-        }
-        if (request.getPrice() != null) {
-            variant.setPrice(request.getPrice());
-        }
-        if (request.getStockQuantity() != null) {
-            variant.setStockQuantity(request.getStockQuantity());
-        }
+        if (request.getVariantName() != null) variant.setVariantName(request.getVariantName());
+        if (request.getPrice() != null)       variant.setPrice(request.getPrice());
+        if (request.getStockQuantity() != null) variant.setStockQuantity(request.getStockQuantity());
         if (request.getSku() != null) {
-            // Kiểm tra SKU trùng
             variantRepository.findBySku(request.getSku()).ifPresent(existing -> {
-                if (!existing.getId().equals(variantId)) {
-                    throw new BadRequestException("SKU đã tồn tại");
-                }
+                if (!existing.getId().equals(variantId)) throw new AppException(ErrorCode.SKU_EXISTED);
             });
             variant.setSku(request.getSku());
         }
 
-        variant = variantRepository.save(variant);
-        return productMapper.toVariantResponse(variant);
+        return toVariantResponse(variantRepository.save(variant));
     }
 
-    /**
-     * Xóa variant (chặn nếu đang trong đơn hàng active)
-     */
     @Transactional
-    public void deleteVariant(Long variantId, String userId) {
+    public void deleteVariant(Long variantId) {
+        String userId = getCurrentUserId();
         ProductVariant variant = variantRepository.findById(variantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy variant"));
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_VARIANT_NOT_FOUND));
+        checkProductOwnership(variant.getProduct(), userId);
 
-        // Kiểm tra quyền sở hữu
-        if (!variant.getProduct().getShop().getOwner().getId().equals(userId)) {
-            throw new UnauthorizedException("Bạn không có quyền xóa variant này");
-        }
-
-        // Kiểm tra variant có trong đơn hàng active không
-        if (variantRepository.isVariantInActiveOrder(variant.getProduct().getId())) {
-            throw new BadRequestException("Không thể xóa variant đang có trong đơn hàng chưa hoàn thành");
+        List<OrderStatus> activeStatuses = List.of(
+                OrderStatus.PENDING, OrderStatus.PREPARING,
+                OrderStatus.READY_TO_SHIP, OrderStatus.SHIPPED
+        );
+        if (variantRepository.isVariantInActiveOrder(variantId, activeStatuses)) {
+            throw new AppException(ErrorCode.VARIANT_IN_ACTIVE_ORDER);
         }
 
         variantRepository.delete(variant);
     }
 
-    /**
-     * Cập nhật tồn kho thủ công
-     */
     @Transactional
-    public ProductVariantResponse updateStock(Long variantId, Integer quantity, String userId) {
+    public ProductVariantResponse updateStock(Long variantId, Integer quantity) {
+        String userId = getCurrentUserId();
         ProductVariant variant = variantRepository.findById(variantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy variant"));
-
-        // Kiểm tra quyền sở hữu
-        if (!variant.getProduct().getShop().getOwner().getId().equals(userId)) {
-            throw new UnauthorizedException("Bạn không có quyền cập nhật tồn kho");
-        }
-
-        if (quantity < 0) {
-            throw new BadRequestException("Số lượng tồn kho không được âm");
-        }
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_VARIANT_NOT_FOUND));
+        checkProductOwnership(variant.getProduct(), userId);
 
         variant.setStockQuantity(quantity);
-        variant = variantRepository.save(variant);
-        return productMapper.toVariantResponse(variant);
+        return toVariantResponse(variantRepository.save(variant));
     }
 
-    /**
-     * Tìm kiếm sản phẩm theo keyword
-     */
-    public Page<ProductResponse> searchProducts(String keyword, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Product> products = productRepository.searchProducts(keyword, pageable);
-        return products.map(productMapper::toResponse);
-    }
+    // ==================== ADMIN ====================
 
-    /**
-     * Lọc sản phẩm theo nhiều tiêu chí
-     */
-    public Page<ProductResponse> filterProducts(ProductFilterRequest request) {
-        Sort sort = request.getSortDirection().equalsIgnoreCase("ASC") 
-                ? Sort.by(request.getSortBy()).ascending()
-                : Sort.by(request.getSortBy()).descending();
-
-        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), sort);
-
-        Page<Product> products = productRepository.filterProducts(
-                request.getCategoryId(),
-                request.getShopId(),
-                request.getMinPrice(),
-                request.getMaxPrice(),
-                pageable
-        );
-
-        return products.map(productMapper::toResponse);
-    }
-
-    /**
-     * Sản phẩm bán chạy nhất
-     */
-    public Page<ProductResponse> getTopSellingProducts(int page, int size, Long shopId) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Product> products;
-
-        if (shopId != null) {
-            products = productRepository.findTopSellingProductsByShop(shopId, pageable);
-        } else {
-            products = productRepository.findTopSellingProducts(pageable);
-        }
-
-        return products.map(productMapper::toResponse);
-    }
-
-    /**
-     * Sản phẩm mới nhất
-     */
-    public Page<ProductResponse> getNewArrivals(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Product> products = productRepository.findByAvailableTrueOrderByCreatedAtDesc(pageable);
-        return products.map(productMapper::toResponse);
-    }
-
-    /**
-     * Admin ẩn sản phẩm vi phạm
-     */
     @Transactional
     public void adminHideProduct(Long productId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+        Product product = getProductOrThrow(productId);
         product.setAvailable(false);
         productRepository.save(product);
     }
 
     @Transactional
     public void adminUnhideProduct(Long productId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+        Product product = getProductOrThrow(productId);
         product.setAvailable(true);
         productRepository.save(product);
     }
 
-    /**
-     * Admin lấy tất cả sản phẩm (kể cả ẩn)
-     */
     public Page<ProductResponse> getAllProductsForAdmin(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Product> products = productRepository.findAll(pageable);
-        return products.map(productMapper::toResponse);
+        return productRepository.findAll(pageable).map(this::toResponse);
+    }
+
+    public Page<ProductResponse> getProductsPendingReview(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return productRepository.findByAvailableFalse(pageable).map(this::toResponse);
     }
 }

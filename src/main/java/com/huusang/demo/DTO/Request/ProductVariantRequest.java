@@ -4,10 +4,8 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 
@@ -15,19 +13,20 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class ProductVariantRequest {
-    
+
     @NotBlank(message = "Tên variant không được để trống")
-    private String variantName;
-    
+    String variantName;
+
     @NotNull(message = "Giá variant không được để trống")
     @DecimalMin(value = "0.0", inclusive = false, message = "Giá phải lớn hơn 0")
-    private BigDecimal price;
-    
+    BigDecimal price;
+
     @NotNull(message = "Số lượng tồn kho không được để trống")
     @Min(value = 0, message = "Số lượng tồn kho không được âm")
-    private Integer stockQuantity;
-    
+    Integer stockQuantity;
+
     @NotBlank(message = "SKU không được để trống")
-    private String sku;
+    String sku;
 }

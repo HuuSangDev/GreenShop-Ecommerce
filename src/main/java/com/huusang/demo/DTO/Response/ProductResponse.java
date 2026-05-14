@@ -1,9 +1,7 @@
 package com.huusang.demo.DTO.Response;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -13,22 +11,23 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class ProductResponse {
-    
-    private Long id;
-    private String productName;
-    private String description;
-    private BigDecimal price;
-    private Integer stockQuantity;
-    private String imageUrl;
-    private boolean available;
-    private LocalDateTime createdAt;
-    
-    private Long shopId;
-    private String shopName;
-    
-    private Long categoryId;
-    private String categoryName;
-    
-    private List<ProductVariantResponse> variants;
+
+    Long id;
+    String productName;
+    String description;
+    BigDecimal price;
+    Integer stockQuantity;
+    String imageUrl;
+    boolean available;
+    LocalDateTime createdAt;
+
+    Long shopId;
+    String shopName;
+
+    Long categoryId;
+    String categoryName;
+
+    List<ProductVariantResponse> variants;
 }

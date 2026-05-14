@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Table(name = "voucher_usages")
 public class VoucherUsage {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -1,9 +1,7 @@
 package com.huusang.demo.DTO.Response;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 
@@ -11,11 +9,12 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class ProductVariantResponse {
-    
-    private Long id;
-    private String variantName;
-    private BigDecimal price;
-    private Integer stockQuantity;
-    private String sku;
+
+    Long id;
+    String variantName;
+    BigDecimal price;
+    Integer stockQuantity;
+    String sku;
 }

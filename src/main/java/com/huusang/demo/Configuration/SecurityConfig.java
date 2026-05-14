@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -27,6 +28,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class SecurityConfig {
@@ -45,7 +47,14 @@ public class SecurityConfig {
         http
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(request ->
-                        request.requestMatchers("/users/register","auth/**").permitAll()
+                        request.requestMatchers(
+                                "/users/register", "/auth/**",
+                                "/swagger-ui/**", "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/api/products/{id}", "/api/products/shop/**",
+                                "/api/products/search", "/api/products/filter",
+                                "/api/products/top-selling", "/api/products/new-arrivals"
+                        ).permitAll()
                                 .anyRequest().authenticated()
                 );
         //xác thực( authentication)

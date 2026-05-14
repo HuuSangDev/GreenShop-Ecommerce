@@ -15,7 +15,7 @@ import java.util.List;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Entity
-@Table(name = "shops")
+@Table(name = "shop_orders")
 public class ShopOrder {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

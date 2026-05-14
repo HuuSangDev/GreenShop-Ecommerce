@@ -9,11 +9,10 @@ spring:
   application:
     name: E-commerce
   datasource:
-    url: jdbc:mysql://localhost:3306/Ecommerce?useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
-
 
   jpa:
     hibernate:
@@ -22,4 +21,9 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
+
+jwt:
+  signerKey: "greenshop-ecommerce-secret-key-must-be-at-least-32-characters-long"
+  valid-duration: 3600
+  refreshable-duration: 86400
 
