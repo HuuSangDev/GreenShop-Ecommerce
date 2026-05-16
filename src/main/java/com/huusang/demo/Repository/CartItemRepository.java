@@ -27,4 +27,32 @@ public interface CartItemRepository extends JpaRepository<CartItem, String> {
 
     // Xóa toàn bộ items của cart (clearCart)
     void deleteByCartId(String cartId);
+
+    // Lấy danh sách cart items theo IDs kèm JOIN FETCH để dùng trong checkout — tránh N+1
+    @Query("""
+            SELECT ci FROM CartItem ci
+            JOIN FETCH ci.productVariant pv
+            JOIN FETCH ci.product p
+            JOIN FETCH p.shop s
+            JOIN FETCH ci.cart c
+            JOIN FETCH c.user u
+            WHERE ci.id IN :ids
+            """)
+    List<CartItem> findByIdInWithDetails(@Param("ids") List<String> ids);
+
+    /**
+     * Dùng trong SePay webhook để xóa cart items sau khi payment thành công.
+     * Tìm tất cả items trong cart của buyer có variant thuộc danh sách đã mua.
+     * Trả về Optional<List> — empty nếu giỏ hàng đã được clear trước đó.
+     */
+    @Query("""
+            SELECT ci FROM CartItem ci
+            JOIN FETCH ci.cart c
+            WHERE c.user.id = :userId
+            AND ci.productVariant.id IN :variantIds
+            """)
+    Optional<List<CartItem>> findByCartUserIdAndVariantIds(
+            @Param("userId") String userId,
+            @Param("variantIds") List<Long> variantIds);
 }
+

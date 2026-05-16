@@ -24,3 +24,6 @@ spring:
 
 jwt:
   signerKey: "huusang-ecommerce-secret-key-must-be-at-least-32-characters-long"
+
+
+

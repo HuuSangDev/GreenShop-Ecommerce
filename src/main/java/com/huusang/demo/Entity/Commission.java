@@ -5,6 +5,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Entity
 @Data
@@ -16,8 +17,10 @@ import java.math.BigDecimal;
 public class Commission {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     String id;
+
+    @PrePersist
+    protected void onCreate() { this.id = UUID.randomUUID().toString(); }
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shop_order_id", nullable = false)

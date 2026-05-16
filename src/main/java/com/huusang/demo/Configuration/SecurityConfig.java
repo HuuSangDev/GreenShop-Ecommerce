@@ -52,6 +52,8 @@ public class SecurityConfig {
                                 // Category tree public — ai cũng xem được
                                 .requestMatchers("/api/v1/categories/tree").permitAll()
                                 .requestMatchers("/api/v1/categories/{id}").permitAll()
+                                // SePay webhook — gọi từ server SePay, không có JWT user
+                                .requestMatchers("/api/v1/payments/sepay/webhook").permitAll()
                                 .anyRequest().authenticated()
                 );
         //xác thực( authentication)

@@ -29,7 +29,15 @@ public enum ErrorCode {
     PRODUCT_UNAVAILABLE(309, "Product is currently unavailable"),
 
     //ORDER
+    ORDER_CART_ITEM_NOT_OWNED(401, "Cart item does not belong to the current user"),
+    ORDER_EMPTY_CART_ITEMS(402, "No cart items provided for checkout"),
+    ORDER_NOT_FOUND(403, "Order not found"),
+    ORDER_INVALID_PAYMENT_METHOD(404, "Invalid payment method"),
 
+    //PAYMENT
+    PAYMENT_NOT_FOUND(501, "Payment not found"),
+    PAYMENT_ALREADY_PAID(502, "Order has already been paid"),
+    PAYMENT_TRANSACTION_REF_NOT_FOUND(503, "Transaction reference not found"),
 
     ;
 

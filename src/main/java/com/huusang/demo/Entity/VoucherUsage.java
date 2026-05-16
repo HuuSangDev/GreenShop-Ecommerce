@@ -5,6 +5,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Data
@@ -15,8 +16,10 @@ import java.time.LocalDateTime;
 @Table(name = "voucher_usages")
 public class VoucherUsage {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private String id;
+
+    @PrePersist
+    protected void onCreate() { this.id = UUID.randomUUID().toString(); }
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "voucher_id", nullable = false)

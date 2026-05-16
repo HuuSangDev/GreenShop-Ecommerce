@@ -16,7 +16,6 @@ import java.util.UUID;
 @Table(name = "shopWallets")
 public class ShopWallet {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     String id;
 
     @OneToOne(fetch = FetchType.LAZY)

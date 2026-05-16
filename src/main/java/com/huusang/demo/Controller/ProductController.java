@@ -1,9 +1,9 @@
 package com.huusang.demo.Controller;
 
-import com.huusang.demo.DTO.Request.*;
-import com.huusang.demo.DTO.Response.ApiResponse;
-import com.huusang.demo.DTO.Response.ProductResponse;
-import com.huusang.demo.DTO.Response.ProductVariantResponse;
+import com.huusang.demo.Dto.Request.*;
+import com.huusang.demo.Dto.Response.ApiResponse;
+import com.huusang.demo.Dto.Response.ProductResponse;
+import com.huusang.demo.Dto.Response.ProductVariantResponse;
 import com.huusang.demo.Service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

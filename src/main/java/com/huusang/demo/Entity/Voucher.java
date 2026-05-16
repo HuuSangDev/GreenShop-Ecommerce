@@ -18,7 +18,6 @@ import java.util.UUID;
 @Table(name = "vouchers")
 public class Voucher {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private String id;
 
     // NULL = voucher toàn sàn (Admin tạo)

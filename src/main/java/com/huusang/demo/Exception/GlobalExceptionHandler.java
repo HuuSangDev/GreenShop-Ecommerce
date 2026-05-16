@@ -48,6 +48,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
     }
 
+    @ExceptionHandler(OutOfStockException.class)
+    public ResponseEntity<ErrorResponse> handleOutOfStock(OutOfStockException ex) {
+        Map<String, String> details = new HashMap<>();
+        details.put("productName", ex.getProductName());
+        details.put("variantName", ex.getVariantName());
+        details.put("requestedQuantity", String.valueOf(ex.getRequestedQuantity()));
+        details.put("availableQuantity", String.valueOf(ex.getAvailableQuantity()));
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Out Of Stock")
+                .message(ex.getMessage())
+                .details(details)
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException ex) {
         ErrorResponse error = ErrorResponse.builder()

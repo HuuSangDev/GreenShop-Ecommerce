@@ -1,8 +1,8 @@
 package com.huusang.demo.Service;
 
-import com.huusang.demo.DTO.Request.*;
-import com.huusang.demo.DTO.Response.ProductResponse;
-import com.huusang.demo.DTO.Response.ProductVariantResponse;
+import com.huusang.demo.Dto.Request.*;
+import com.huusang.demo.Dto.Response.ProductResponse;
+import com.huusang.demo.Dto.Response.ProductVariantResponse;
 import com.huusang.demo.Entity.*;
 import com.huusang.demo.Exception.BadRequestException;
 import com.huusang.demo.Exception.ResourceNotFoundException;
@@ -240,7 +240,7 @@ public class ProductService {
         }
 
         // Kiểm tra variant có trong đơn hàng active không
-        if (variantRepository.isVariantInActiveOrder(variant.getProduct().getId())) {
+        if (variantRepository.isVariantInActiveOrder(variant.getId())) {
             throw new BadRequestException("Không thể xóa variant đang có trong đơn hàng chưa hoàn thành");
         }
 

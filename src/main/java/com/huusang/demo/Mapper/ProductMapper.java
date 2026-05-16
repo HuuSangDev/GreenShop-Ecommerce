@@ -1,7 +1,7 @@
 package com.huusang.demo.Mapper;
 
-import com.huusang.demo.DTO.Response.ProductResponse;
-import com.huusang.demo.DTO.Response.ProductVariantResponse;
+import com.huusang.demo.Dto.Response.ProductResponse;
+import com.huusang.demo.Dto.Response.ProductVariantResponse;
 import com.huusang.demo.Entity.Product;
 import com.huusang.demo.Entity.ProductVariant;
 import org.springframework.stereotype.Component;
@@ -25,7 +25,7 @@ public class ProductMapper {
                 .shopId(product.getShop() != null ? product.getShop().getId() : null)
                 .shopName(product.getShop() != null ? product.getShop().getShopName() : null)
                 .categoryId(product.getCategory() != null ? product.getCategory().getId() : null)
-                .categoryName(product.getCategory() != null ? product.getCategory().getCategoryName() : null)
+                .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
                 .variants(product.getVariants() != null ? 
                          product.getVariants().stream()
                                  .map(this::toVariantResponse)

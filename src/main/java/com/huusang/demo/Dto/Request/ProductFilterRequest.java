@@ -1,4 +1,4 @@
-package com.huusang.demo.DTO.Request;
+package com.huusang.demo.Dto.Request;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
