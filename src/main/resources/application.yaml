@@ -2,7 +2,7 @@ server:
   address: 0.0.0.0
   port: 8080
   servlet:
-    context-path: /ecommerce
+    context-path: /ecommerce/api/v1
 spring:
   profiles:
     active: local

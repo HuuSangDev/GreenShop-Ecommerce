@@ -1,63 +1,34 @@
-package com.huusang.demo.Entity;
+package com.huusang.demo.Dto.Response;
 
 import com.huusang.demo.Enum.VoucherType;
-import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
-@Entity
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Table(name = "vouchers")
-public class Voucher {
-    @Id
-    private String id;
+public class VoucherResponse {
 
-    // NULL = voucher toàn sàn (Admin tạo)
-    // Có giá trị = voucher riêng của shop
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id")
-    Shop shop;
-
-    @Column(unique = true, nullable = false, length = 50)
+    String id;
     String code;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
-    VoucherType type;   // PERCENT | FIXED
-
-    @Column(nullable = false, precision = 15, scale = 2)
+    VoucherType type;
     BigDecimal value;
-
-    @Column(name = "max_discount", precision = 15, scale = 2)
     BigDecimal maxDiscount;
-
-    @Column(name = "min_order_amt", precision = 15, scale = 2)
-    BigDecimal minOrderAmt = BigDecimal.ZERO;
-
-    @Column(name = "max_usage")
+    BigDecimal minOrderAmt;
     Integer maxUsage;
-
-    @Column(name = "used_count")
-    Integer usedCount = 0;
-
-    @Column(name = "starts_at", nullable = false)
+    Integer usedCount;
+    Integer remainingUsage; // null nếu unlimited
     LocalDateTime startsAt;
-
-    @Column(name = "expires_at", nullable = false)
     LocalDateTime expiresAt;
+    boolean active;
 
-    @Column(nullable = false)
-    boolean active = true;
-
-    @PrePersist
-    protected void onCreate() { this.id = UUID.randomUUID().toString(); }
+    // null nếu là voucher toàn sàn
+    Long shopId;
+    String shopName;
 
     // Getters and Setters
     public String getId() {
@@ -66,14 +37,6 @@ public class Voucher {
 
     public void setId(String id) {
         this.id = id;
-    }
-
-    public Shop getShop() {
-        return shop;
-    }
-
-    public void setShop(Shop shop) {
-        this.shop = shop;
     }
 
     public String getCode() {
@@ -132,6 +95,14 @@ public class Voucher {
         this.usedCount = usedCount;
     }
 
+    public Integer getRemainingUsage() {
+        return remainingUsage;
+    }
+
+    public void setRemainingUsage(Integer remainingUsage) {
+        this.remainingUsage = remainingUsage;
+    }
+
     public LocalDateTime getStartsAt() {
         return startsAt;
     }
@@ -154,5 +125,21 @@ public class Voucher {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public Long getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(Long shopId) {
+        this.shopId = shopId;
+    }
+
+    public String getShopName() {
+        return shopName;
+    }
+
+    public void setShopName(String shopName) {
+        this.shopName = shopName;
     }
 }

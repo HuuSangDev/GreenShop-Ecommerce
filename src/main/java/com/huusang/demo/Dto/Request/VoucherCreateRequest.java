@@ -1,81 +1,49 @@
-package com.huusang.demo.Entity;
+package com.huusang.demo.Dto.Request;
 
 import com.huusang.demo.Enum.VoucherType;
-import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
-@Entity
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Table(name = "vouchers")
-public class Voucher {
-    @Id
-    private String id;
+public class VoucherCreateRequest {
 
-    // NULL = voucher toàn sàn (Admin tạo)
-    // Có giá trị = voucher riêng của shop
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id")
-    Shop shop;
-
-    @Column(unique = true, nullable = false, length = 50)
+    @NotBlank(message = "Mã voucher không được để trống")
+    @Size(min = 3, max = 50, message = "Mã voucher phải từ 3-50 ký tự")
     String code;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
-    VoucherType type;   // PERCENT | FIXED
+    @NotNull(message = "Loại voucher không được để trống")
+    VoucherType type; // PERCENT | FIXED
 
-    @Column(nullable = false, precision = 15, scale = 2)
+    @NotNull(message = "Giá trị voucher không được để trống")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Giá trị voucher phải lớn hơn 0")
     BigDecimal value;
 
-    @Column(name = "max_discount", precision = 15, scale = 2)
+    // Chỉ dùng khi type = PERCENT, giới hạn số tiền giảm tối đa
     BigDecimal maxDiscount;
 
-    @Column(name = "min_order_amt", precision = 15, scale = 2)
-    BigDecimal minOrderAmt = BigDecimal.ZERO;
+    @DecimalMin(value = "0.0", message = "Giá trị đơn tối thiểu không được âm")
+    BigDecimal minOrderAmt;
 
-    @Column(name = "max_usage")
-    Integer maxUsage;
+    @Min(value = 1, message = "Số lượt dùng tối thiểu là 1")
+    Integer maxUsage; // null = unlimited
 
-    @Column(name = "used_count")
-    Integer usedCount = 0;
-
-    @Column(name = "starts_at", nullable = false)
+    @NotNull(message = "Thời gian bắt đầu không được để trống")
     LocalDateTime startsAt;
 
-    @Column(name = "expires_at", nullable = false)
+    @NotNull(message = "Thời gian kết thúc không được để trống")
     LocalDateTime expiresAt;
 
-    @Column(nullable = false)
-    boolean active = true;
-
-    @PrePersist
-    protected void onCreate() { this.id = UUID.randomUUID().toString(); }
+    // null = voucher toàn sàn (Admin), có giá trị = voucher của shop (Seller)
+    Long shopId;
 
     // Getters and Setters
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public Shop getShop() {
-        return shop;
-    }
-
-    public void setShop(Shop shop) {
-        this.shop = shop;
-    }
-
     public String getCode() {
         return code;
     }
@@ -124,14 +92,6 @@ public class Voucher {
         this.maxUsage = maxUsage;
     }
 
-    public Integer getUsedCount() {
-        return usedCount;
-    }
-
-    public void setUsedCount(Integer usedCount) {
-        this.usedCount = usedCount;
-    }
-
     public LocalDateTime getStartsAt() {
         return startsAt;
     }
@@ -148,11 +108,11 @@ public class Voucher {
         this.expiresAt = expiresAt;
     }
 
-    public boolean isActive() {
-        return active;
+    public Long getShopId() {
+        return shopId;
     }
 
-    public void setActive(boolean active) {
-        this.active = active;
+    public void setShopId(Long shopId) {
+        this.shopId = shopId;
     }
 }
