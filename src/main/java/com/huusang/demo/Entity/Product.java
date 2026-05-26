@@ -9,8 +9,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
-@Entity
 @Data
+@Entity
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -47,4 +47,5 @@ public class Product {
     boolean available = true;
 
     LocalDateTime createdAt = LocalDateTime.now();
+
 }

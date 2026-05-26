@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -18,4 +17,6 @@ public class ProductVariantResponse {
     private BigDecimal price;
     private Integer stockQuantity;
     private String sku;
+
+
 }

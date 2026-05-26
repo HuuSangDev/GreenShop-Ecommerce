@@ -8,10 +8,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(name = "voucher_usages")
 public class VoucherUsage {
@@ -35,4 +35,6 @@ public class VoucherUsage {
 
     @Column(name = "used_at")
     private LocalDateTime usedAt;
+
+
 }

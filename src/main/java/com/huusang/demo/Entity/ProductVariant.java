@@ -7,8 +7,8 @@ import lombok.experimental.FieldDefaults;
 import java.math.BigDecimal;
 import java.util.List;
 
-@Entity
 @Data
+@Entity
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -36,4 +36,6 @@ public class ProductVariant {
     // Optimistic locking — tránh race condition khi nhiều user cùng thêm vào giỏ
     @Version
     Long version;
+
+
 }

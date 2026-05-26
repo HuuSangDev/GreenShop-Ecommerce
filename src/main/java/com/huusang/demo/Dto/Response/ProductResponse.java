@@ -31,4 +31,5 @@ public class ProductResponse {
     private String categoryName;
     
     private List<ProductVariantResponse> variants;
+
 }

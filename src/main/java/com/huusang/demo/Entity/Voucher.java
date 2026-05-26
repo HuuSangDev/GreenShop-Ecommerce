@@ -10,10 +10,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(name = "vouchers")
 public class Voucher {
@@ -54,8 +54,11 @@ public class Voucher {
     @Column(name = "expires_at", nullable = false)
     LocalDateTime expiresAt;
 
-
+    @Column(nullable = false)
+    boolean active = true;
 
     @PrePersist
     protected void onCreate() { this.id = UUID.randomUUID().toString(); }
+
+
 }
