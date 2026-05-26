@@ -39,6 +39,18 @@ public enum ErrorCode {
     PAYMENT_ALREADY_PAID(502, "Order has already been paid"),
     PAYMENT_TRANSACTION_REF_NOT_FOUND(503, "Transaction reference not found"),
 
+    //SHOP
+    SHOP_NOT_FOUND(601, "Shop not found"),
+    SHOP_ALREADY_EXISTS(602, "User already has a shop"),
+    SHOP_APPLICATION_NOT_FOUND(603, "Shop application not found"),
+    SHOP_APPLICATION_ALREADY_PENDING(604, "You already have a pending application"),
+    SHOP_APPLICATION_NOT_PENDING(605, "Application is not in PENDING status"),
+    SHOP_WALLET_NOT_FOUND(606, "Shop wallet not found"),
+    SHOP_INSUFFICIENT_BALANCE(607, "Insufficient wallet balance for withdrawal"),
+    SHOP_WITHDRAWAL_NOT_FOUND(608, "Withdrawal request not found"),
+    SHOP_WITHDRAWAL_NOT_PENDING(609, "Withdrawal is not in PENDING status"),
+
+
     //VOUCHER
     VOUCHER_NOT_FOUND(601, "Không tìm thấy voucher"),
     VOUCHER_CODE_EXISTED(602, "Mã voucher đã tồn tại"),
@@ -51,7 +63,7 @@ public enum ErrorCode {
     VOUCHER_ALREADY_ACTIVE(609, "Voucher đang hoạt động"),
     VOUCHER_CANNOT_UPDATE(610, "Không thể sửa voucher đã được sử dụng"),
     UNAUTHORIZED_VOUCHER(611, "Bạn không có quyền thao tác voucher này"),
-    SHOP_NOT_FOUND(612, "Không tìm thấy shop"),
+
 
 
     ;
