@@ -13,6 +13,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(name = "vouchers")
 public class Voucher {
@@ -59,100 +60,5 @@ public class Voucher {
     @PrePersist
     protected void onCreate() { this.id = UUID.randomUUID().toString(); }
 
-    // Getters and Setters
-    public String getId() {
-        return id;
-    }
 
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public Shop getShop() {
-        return shop;
-    }
-
-    public void setShop(Shop shop) {
-        this.shop = shop;
-    }
-
-    public String getCode() {
-        return code;
-    }
-
-    public void setCode(String code) {
-        this.code = code;
-    }
-
-    public VoucherType getType() {
-        return type;
-    }
-
-    public void setType(VoucherType type) {
-        this.type = type;
-    }
-
-    public BigDecimal getValue() {
-        return value;
-    }
-
-    public void setValue(BigDecimal value) {
-        this.value = value;
-    }
-
-    public BigDecimal getMaxDiscount() {
-        return maxDiscount;
-    }
-
-    public void setMaxDiscount(BigDecimal maxDiscount) {
-        this.maxDiscount = maxDiscount;
-    }
-
-    public BigDecimal getMinOrderAmt() {
-        return minOrderAmt;
-    }
-
-    public void setMinOrderAmt(BigDecimal minOrderAmt) {
-        this.minOrderAmt = minOrderAmt;
-    }
-
-    public Integer getMaxUsage() {
-        return maxUsage;
-    }
-
-    public void setMaxUsage(Integer maxUsage) {
-        this.maxUsage = maxUsage;
-    }
-
-    public Integer getUsedCount() {
-        return usedCount;
-    }
-
-    public void setUsedCount(Integer usedCount) {
-        this.usedCount = usedCount;
-    }
-
-    public LocalDateTime getStartsAt() {
-        return startsAt;
-    }
-
-    public void setStartsAt(LocalDateTime startsAt) {
-        this.startsAt = startsAt;
-    }
-
-    public LocalDateTime getExpiresAt() {
-        return expiresAt;
-    }
-
-    public void setExpiresAt(LocalDateTime expiresAt) {
-        this.expiresAt = expiresAt;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
-    }
 }

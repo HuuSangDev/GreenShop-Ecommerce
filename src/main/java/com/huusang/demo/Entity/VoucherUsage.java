@@ -11,6 +11,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(name = "voucher_usages")
 public class VoucherUsage {
@@ -35,44 +36,5 @@ public class VoucherUsage {
     @Column(name = "used_at")
     private LocalDateTime usedAt;
 
-    // Getters and Setters
-    public String getId() {
-        return id;
-    }
 
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public Voucher getVoucher() {
-        return voucher;
-    }
-
-    public void setVoucher(Voucher voucher) {
-        this.voucher = voucher;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public Order getOrder() {
-        return order;
-    }
-
-    public void setOrder(Order order) {
-        this.order = order;
-    }
-
-    public LocalDateTime getUsedAt() {
-        return usedAt;
-    }
-
-    public void setUsedAt(LocalDateTime usedAt) {
-        this.usedAt = usedAt;
-    }
 }

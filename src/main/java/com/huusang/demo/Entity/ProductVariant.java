@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 import java.math.BigDecimal;
 import java.util.List;
 
+@Data
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
@@ -36,60 +37,5 @@ public class ProductVariant {
     @Version
     Long version;
 
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Product getProduct() {
-        return product;
-    }
-
-    public void setProduct(Product product) {
-        this.product = product;
-    }
-
-    public String getVariantName() {
-        return variantName;
-    }
-
-    public void setVariantName(String variantName) {
-        this.variantName = variantName;
-    }
-
-    public BigDecimal getPrice() {
-        return price;
-    }
-
-    public void setPrice(BigDecimal price) {
-        this.price = price;
-    }
-
-    public Integer getStockQuantity() {
-        return stockQuantity;
-    }
-
-    public void setStockQuantity(Integer stockQuantity) {
-        this.stockQuantity = stockQuantity;
-    }
-
-    public String getSku() {
-        return sku;
-    }
-
-    public void setSku(String sku) {
-        this.sku = sku;
-    }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public void setVersion(Long version) {
-        this.version = version;
-    }
 }
