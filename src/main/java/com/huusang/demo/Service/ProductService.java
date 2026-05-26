@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,22 +30,30 @@ public class ProductService {
     private final ShopRepository shopRepository;
     private final CategoryRepository categoryRepository;
     private final ProductMapper productMapper;
+    private final FileStorageService fileStorageService;
+    private final UserRepository userRepository;
 
-    /**
-     * Tạo sản phẩm mới kèm variants
-     * Chỉ seller có shop mới được tạo
-     */
+
     @Transactional
-    public ProductResponse createProduct(ProductCreateRequest request, String userId) {
-        // Kiểm tra shop của user
-        Shop shop = shopRepository.findByOwnerId(userId)
+    public ProductResponse createProduct(ProductCreateRequest request, String email) {
+        // 1. Tìm User bằng email từ token
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Tài khoản không tồn tại"));
+
+        // 2. Lấy ID của User để tìm Shop
+        Shop shop = shopRepository.findByOwnerId(user.getId()) // Truyền ID vào đây
                 .orElseThrow(() -> new BadRequestException("Bạn chưa có shop. Vui lòng tạo shop trước"));
 
-        // Kiểm tra category
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục"));
 
-        // Tạo product
+        // Lấy file ảnh từ bên trong DTO, lưu vào disk nếu có
+        String imageUrl = null;
+        MultipartFile image = request.getImage();
+        if (image != null && !image.isEmpty()) {
+            imageUrl = fileStorageService.storeFile(image, "products");
+        }
+
         Product product = Product.builder()
                 .shop(shop)
                 .category(category)
@@ -52,24 +61,22 @@ public class ProductService {
                 .description(request.getDescription())
                 .price(request.getPrice())
                 .stockQuantity(request.getStockQuantity())
-                .imageUrl(request.getImageUrl())
+                .imageUrl(imageUrl)   // relative path: "products/uuid.jpg"
                 .available(true)
                 .build();
 
         product = productRepository.save(product);
 
-        // Tạo variants nếu có
         if (request.getVariants() != null && !request.getVariants().isEmpty()) {
             List<ProductVariant> variants = new ArrayList<>();
             for (ProductVariantRequest variantReq : request.getVariants()) {
-                ProductVariant variant = ProductVariant.builder()
+                variants.add(ProductVariant.builder()
                         .product(product)
                         .variantName(variantReq.getVariantName())
                         .price(variantReq.getPrice())
                         .stockQuantity(variantReq.getStockQuantity())
                         .sku(variantReq.getSku())
-                        .build();
-                variants.add(variant);
+                        .build());
             }
             variants = variantRepository.saveAll(variants);
             product.setVariants(variants);
@@ -79,39 +86,33 @@ public class ProductService {
     }
 
     /**
-     * Cập nhật thông tin sản phẩm
-     * Chỉ chủ shop mới được sửa
+     * Cập nhật thông tin sản phẩm.
+     * image được lấy từ request.getImage() — null = giữ nguyên ảnh cũ.
      */
     @Transactional
     public ProductResponse updateProduct(Long productId, ProductUpdateRequest request, String userId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
 
-        // Kiểm tra quyền sở hữu
         if (!product.getShop().getOwner().getId().equals(userId)) {
             throw new UnauthorizedException("Bạn không có quyền sửa sản phẩm này");
         }
 
-        // Cập nhật các trường
-        if (request.getProductName() != null) {
-            product.setProductName(request.getProductName());
-        }
-        if (request.getDescription() != null) {
-            product.setDescription(request.getDescription());
-        }
-        if (request.getPrice() != null) {
-            product.setPrice(request.getPrice());
-        }
-        if (request.getStockQuantity() != null) {
-            product.setStockQuantity(request.getStockQuantity());
-        }
+        if (request.getProductName() != null)   product.setProductName(request.getProductName());
+        if (request.getDescription() != null)   product.setDescription(request.getDescription());
+        if (request.getPrice() != null)         product.setPrice(request.getPrice());
+        if (request.getStockQuantity() != null) product.setStockQuantity(request.getStockQuantity());
         if (request.getCategoryId() != null) {
             Category category = categoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục"));
             product.setCategory(category);
         }
-        if (request.getImageUrl() != null) {
-            product.setImageUrl(request.getImageUrl());
+
+        // Lấy file ảnh từ bên trong DTO
+        MultipartFile image = request.getImage();
+        if (image != null && !image.isEmpty()) {
+            fileStorageService.deleteFile(product.getImageUrl()); // xóa ảnh cũ
+            product.setImageUrl(fileStorageService.storeFile(image, "products"));
         }
 
         product = productRepository.save(product);
@@ -350,5 +351,39 @@ public class ProductService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<Product> products = productRepository.findAll(pageable);
         return products.map(productMapper::toResponse);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  UPLOAD ẢNH
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Upload ảnh cho sản phẩm.
+     * Lưu file vào thư mục uploads/products/, cập nhật imageUrl trong DB.
+     *
+     * @param productId ID sản phẩm
+     * @param file      file ảnh từ request
+     * @param userId    email của seller (kiểm tra quyền sở hữu)
+     * @return ProductResponse với imageUrl mới
+     */
+    @Transactional
+    public ProductResponse uploadProductImage(Long productId, MultipartFile file, String userId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+
+        // Kiểm tra quyền sở hữu
+        if (!product.getShop().getOwner().getId().equals(userId)) {
+            throw new UnauthorizedException("Bạn không có quyền cập nhật ảnh sản phẩm này");
+        }
+
+        // Xóa ảnh cũ nếu đã có
+        fileStorageService.deleteFile(product.getImageUrl());
+
+        // Lưu ảnh mới vào uploads/products/
+        String imageUrl = fileStorageService.storeFile(file, "products");
+        product.setImageUrl(imageUrl);
+        productRepository.save(product);
+
+        return productMapper.toResponse(product);
     }
 }

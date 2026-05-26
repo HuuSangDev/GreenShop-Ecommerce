@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -23,10 +24,23 @@ public class ProductController {
 
     // ==================== SELLER ENDPOINTS ====================
 
-    @PostMapping
+    /**
+     * POST /api/products
+     * Tạo sản phẩm mới kèm ảnh.
+     * <p>
+     * Postman: Body → form-data (không cần set Content-Type thủ công)
+     *   productName   (Text) → "Tai nghe Sony"
+     *   description   (Text) → "Mô tả..."
+     *   price         (Text) → 7990000
+     *   stockQuantity (Text) → 100
+     *   categoryId    (Text) → 1
+     *   image         (File) → [chọn file ảnh, optional]
+     */
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
-            @Valid @RequestBody ProductCreateRequest request,
+            @ModelAttribute @Valid ProductCreateRequest request,
             Authentication authentication) {
 
         ProductResponse response = productService.createProduct(request, authentication.getName());
@@ -35,11 +49,20 @@ public class ProductController {
                 .body(ApiResponse.success("Tạo sản phẩm thành công", response));
     }
 
-    @PutMapping("/{id}")
+    /**
+     * PUT /api/products/{id}
+     * Cập nhật thông tin sản phẩm (ảnh tùy chọn).
+     * <p>
+     * Postman: Body → form-data
+     *   productName   (Text, optional) → tên mới
+     *   price         (Text, optional) → giá mới
+     *   image         (File, optional) → ảnh mới, không gửi = giữ ảnh cũ
+     */
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('SELLER')")
     public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
             @PathVariable Long id,
-            @Valid @RequestBody ProductUpdateRequest request,
+            @ModelAttribute @Valid ProductUpdateRequest request,
             Authentication authentication) {
 
         ProductResponse response = productService.updateProduct(id, request, authentication.getName());

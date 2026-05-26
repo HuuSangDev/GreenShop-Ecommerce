@@ -39,56 +39,48 @@ public class SecurityConfig {
     @Value("${jwt.signerKey}")
     protected String signerkey;
 
-
-
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception
-    {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(Customizer.withDefaults())
-                .authorizeHttpRequests(request ->
-                        request
-                                .requestMatchers("/users/register", "auth/**").permitAll()
-                                // Category tree public — ai cũng xem được
-                                .requestMatchers("/api/v1/categories/tree").permitAll()
-                                .requestMatchers("/api/v1/categories/{id}").permitAll()
-                                // SePay webhook — gọi từ server SePay, không có JWT user
-                                .requestMatchers("/api/v1/payments/sepay/webhook").permitAll()
-                                .anyRequest().authenticated()
-                );
-        //xác thực( authentication)
-        http.oauth2ResourceServer(oauth2->
-                oauth2.jwt(jwtConfigurer ->
-                        jwtConfigurer.decoder(jwtDecoder())
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
-                        )
+                .authorizeHttpRequests(request -> request
+                        .requestMatchers("/users/register", "auth/**").permitAll()
+                        // Category tree public — ai cũng xem được
+                        .requestMatchers("/api/v1/categories/tree").permitAll()
+                        .requestMatchers("/api/v1/categories/{id}").permitAll()
+                        // SePay webhook — gọi từ server SePay, không có JWT user
+                        .requestMatchers("/api/v1/payments/sepay/webhook").permitAll()
+                        // Thông tin public của shop — khách xem không cần đăng nhập
+                        .requestMatchers("GET", "/api/v1/shops/{id}").permitAll()
+                        // Ảnh tĩnh local — phục vụ qua /images/**, không cần JWT
+                        .requestMatchers("/images/**").permitAll()
+                        .anyRequest().authenticated());
+        // xác thực( authentication)
+        http.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder())
+                .jwtAuthenticationConverter(jwtAuthenticationConverter()))
 
         );
         // Tắt CSRF nếu cần
         http.csrf(AbstractHttpConfigurer::disable);
 
-
         return http.build();
     }
 
     @Bean
-    PasswordEncoder passwordEncoder()
-    {
+    PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(10);
     }
 
     @Bean
-    JwtDecoder jwtDecoder()
-    {
-        //giải mã jwt
-        SecretKeySpec secretKeySpec= new SecretKeySpec(signerkey.getBytes(),"HS512");
+    JwtDecoder jwtDecoder() {
+        // giải mã jwt
+        SecretKeySpec secretKeySpec = new SecretKeySpec(signerkey.getBytes(), "HS512");
 
         NimbusJwtDecoder nimbusJwtDecoder = NimbusJwtDecoder
                 .withSecretKey(secretKeySpec)
                 .macAlgorithm(MacAlgorithm.HS512)
                 .build();
         return token -> {
-
 
             Jwt jwt = nimbusJwtDecoder.decode(token);
             String jwtId = jwt.getId();
@@ -103,15 +95,13 @@ public class SecurityConfig {
         };
     }
 
-
-    //mo xe token , tim den payload -> moc chuoi quyen
+    // mo xe token , tim den payload -> moc chuoi quyen
     @Bean
-    JwtAuthenticationConverter jwtAuthenticationConverter()
-    {
-        JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter= new JwtGrantedAuthoritiesConverter();
+    JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
         jwtGrantedAuthoritiesConverter.setAuthorityPrefix("");
 
-        JwtAuthenticationConverter jwtAuthenticationConverter= new JwtAuthenticationConverter();
+        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
         return jwtAuthenticationConverter;
 

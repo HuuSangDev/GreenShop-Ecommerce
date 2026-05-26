@@ -1,0 +1,16 @@
+package com.huusang.demo.Dto.Request;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public class RejectShopRequest {
+
+    @NotBlank(message = "Lý do từ chối không được để trống")
+    String reason;
+}

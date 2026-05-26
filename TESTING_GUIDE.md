@@ -1,562 +1,864 @@
-# 🧪 HƯỚNG DẪN TEST PRODUCT MANAGEMENT API
+# 🧪 Hướng Dẫn Test Thủ Công OrderService bằng Postman
 
-## 📋 Tổng quan
-Vì chưa có JWT, cách nhanh nhất là tạm thời bỏ @PreAuthorize để test hết các API trước, sau này implement JWT mới bật lại.
-
-Dự án đã implement đầy đủ **Product Management Module** với 15 REST APIs:
-- ✅ CRUD sản phẩm (tạo, sửa, xóa, xem)
-- ✅ Quản lý Product Variants (màu sắc, kích thước, SKU)
-- ✅ Tìm kiếm & Lọc sản phẩm
-- ✅ Sản phẩm bán chạy & mới nhất
-- ✅ Admin moderation
+> **Base URL**: `http://localhost:8080/ecommerce`  
+> **Content-Type**: `application/json`  
+> **Auth**: Bearer Token (JWT) — lấy từ bước đăng nhập
 
 ---
 
-## 🚀 BƯỚC 1: SETUP DATABASE (5 phút)
+## 📋 TỔNG QUAN LUỒNG TEST
 
-### 1.1. Tạo Database
-
-```bash
-# Mở MySQL
-mysql -u root -p
-
-# Tạo database
-CREATE DATABASE Ecommorce CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-# Thoát MySQL
-exit;
 ```
-
-✅ **Kiểm tra:** Database đã được tạo
+[1] Đăng ký Admin + Buyer + Seller
+[2] Tạo Category (Admin)
+[3] Đăng ký Shop → Approve Shop (Admin)
+[4] Seller tạo Product + Variant
+[5] Buyer thêm sản phẩm vào Cart
+[6] === TEST ORDERSERVICE ===
+    [6.1] Preview Checkout
+    [6.2] Checkout COD
+    [6.3] Checkout SEPAY + giả lập Webhook
+```
 
 ---
 
-## 🚀 BƯỚC 2: CHẠY APPLICATION (2 phút)
+## 🔐 PHASE 1 — SETUP TÀI KHOẢN
 
-### 2.1. Kiểm tra cấu hình
+### 1.1 Đăng ký tài khoản Admin (hoặc dùng tài khoản có sẵn)
 
-Mở file `src/main/resources/application.yaml` và đảm bảo:
+> ⚠️ **Lưu ý**: Tài khoản Admin phải được tạo thủ công trong DB hoặc qua script. Nếu đã có tài khoản Admin, bỏ qua bước này.
 
-```yaml
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/Ecommorce
-    username: root
-    password: root  # Đổi thành password MySQL của bạn
+**Request — Đăng ký User thường:**
 ```
-
-### 2.2. Chạy Server (Hibernate sẽ tự động tạo tables)
-
-```bash
-# Cách 1: Maven
-mvn spring-boot:run
-
-# Cách 2: Maven Wrapper (Windows)
-.\mvnw.cmd spring-boot:run
+POST http://localhost:8080/ecommerce/users/register
+Content-Type: application/json
 ```
-
-✅ **Kiểm tra:** 
-- Đợi thấy log `Started ECommerceApplication in X seconds`
-- Hibernate sẽ tự động tạo tất cả các bảng (categories, users, shops, products, etc.)
-
-Server chạy tại: `http://localhost:8080`
-
----
-
-## 🚀 BƯỚC 3: IMPORT DỮ LIỆU TEST (3 phút)
-
-**Sau khi server đã chạy và tạo tables**, mở MySQL terminal mới:
-
-```bash
-mysql -u root -p Ecommorce
-```
-
-```sql
--- Tạo Categories
-INSERT INTO categories (category_name, parent_id) VALUES 
-('Điện thoại', NULL),
-('Laptop', NULL),
-('Phụ kiện', NULL);
-
--- Tạo User (password: 123456)
-INSERT INTO users (id, username, password, email, full_name, phone_number, active, created_at) VALUES 
-('550e8400-e29b-41d4-a716-446655440000', 'seller1', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'seller1@test.com', 'Test Seller', '0901234567', true, NOW());
-
--- Tạo Shop
-INSERT INTO shops (shop_name, description, rating, owner_id, created_at) VALUES 
-('Test Shop', 'Shop để test API', 4.5, '550e8400-e29b-41d4-a716-446655440000', NOW());
-
--- Verify
-SELECT 'Setup completed!' as Status;
-SELECT * FROM categories;
-SELECT id, username, email FROM users;
-SELECT id, shop_name, owner_id FROM shops;
-
-exit;
-```
-
-✅ **Kiểm tra:** Phải thấy 3 categories, 1 user, 1 shop
-
----
-
-## 🧪 BƯỚC 4: TEST CÁC API (15 phút)
-
-### 📌 Lưu ý:
-- Mở terminal/PowerShell **MỚI** (giữ server chạy ở terminal cũ)
-- Thay `{id}` bằng ID thực tế từ response
-- Base URL: `http://localhost:8080/api`
-
----
-
-## TEST 1: Tạo Sản Phẩm ✨
-
-**Endpoint:** `POST /api/products`
-
-**PowerShell:**
-```powershell
-$body = @{
-    productName = "iPhone 15 Pro Max"
-    description = "Điện thoại cao cấp từ Apple"
-    price = 29990000
-    stockQuantity = 100
-    categoryId = 1
-    imageUrl = "https://example.com/iphone.jpg"
-    variants = @(
-        @{
-            variantName = "Titan Tự Nhiên - 256GB"
-            price = 29990000
-            stockQuantity = 50
-            sku = "IP15PM-TN-256"
-        },
-        @{
-            variantName = "Titan Xanh - 512GB"
-            price = 34990000
-            stockQuantity = 30
-            sku = "IP15PM-TX-512"
-        }
-    )
-} | ConvertTo-Json -Depth 10
-
-Invoke-RestMethod -Uri "http://localhost:8080/api/products" -Method Post -Body $body -ContentType "application/json" | ConvertTo-Json -Depth 10
-```
-
-**cURL (Windows CMD):**
-```bash
-curl -X POST http://localhost:8080/api/products ^
-  -H "Content-Type: application/json" ^
-  -d "{\"productName\":\"iPhone 15 Pro Max\",\"description\":\"Điện thoại cao cấp\",\"price\":29990000,\"stockQuantity\":100,\"categoryId\":1,\"imageUrl\":\"https://example.com/iphone.jpg\",\"variants\":[{\"variantName\":\"Titan Tự Nhiên - 256GB\",\"price\":29990000,\"stockQuantity\":50,\"sku\":\"IP15PM-TN-256\"}]}"
-```
-
-**✅ Kết quả mong đợi:**
 ```json
 {
-  "success": true,
-  "message": "Tạo sản phẩm thành công",
-  "data": {
-    "id": 1,
-    "productName": "iPhone 15 Pro Max",
-    "price": 29990000,
-    "shopName": "Test Shop",
-    "variants": [...]
+  "email": "admin@test.com",
+  "password": "Admin@123",
+  "fullName": "Admin GreenShop",
+  "phoneNumber": "0900000001"
+}
+```
+
+> Sau đó vào DB thêm role ADMIN cho user này:  
+> `INSERT INTO user_roles (user_id, role_id) VALUES ('<userId>', <roleId_ADMIN>);`
+
+---
+
+### 1.2 Đăng ký tài khoản Buyer (người mua)
+
+```
+POST http://localhost:8080/ecommerce/users/register
+Content-Type: application/json
+```
+```json
+{
+  "email": "buyer@test.com",
+  "password": "Buyer@123",
+  "fullName": "Nguyễn Văn Mua",
+  "phoneNumber": "0911111111"
+}
+```
+
+**✅ Lưu lại**: `userId` của buyer từ response.
+
+---
+
+### 1.3 Đăng ký tài khoản Seller (người bán)
+
+```
+POST http://localhost:8080/ecommerce/users/register
+Content-Type: application/json
+```
+```json
+{
+  "email": "seller@test.com",
+  "password": "Seller@123",
+  "fullName": "Trần Thị Bán",
+  "phoneNumber": "0922222222"
+}
+```
+
+**✅ Lưu lại**: `userId` của seller từ response.
+
+---
+
+## 🔑 PHASE 2 — ĐĂNG NHẬP & LẤY TOKEN
+
+### 2.1 Đăng nhập Admin
+
+```
+POST http://localhost:8080/ecommerce/auth/login
+Content-Type: application/json
+```
+```json
+{
+  "email": "admin@test.com",
+  "password": "Admin@123"
+}
+```
+
+**Response mẫu:**
+```json
+{
+  "code": 200,
+  "message": "create user success",
+  "result": {
+    "token": "eyJhbGciOiJSUzI1NiJ9...",
+    "refreshToken": "eyJhbGci..."
   }
 }
 ```
 
----
-
-## TEST 2: Lấy Chi Tiết Sản Phẩm 📄
-
-**Endpoint:** `GET /api/products/{id}`
-
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/1" -Method Get | ConvertTo-Json -Depth 10
-```
-
-**cURL:**
-```bash
-curl http://localhost:8080/api/products/1
-```
-
-**✅ Kết quả:** Hiển thị đầy đủ thông tin sản phẩm + variants
+**✅ Lưu lại**: `ADMIN_TOKEN = result.token`
 
 ---
 
-## TEST 3: Cập Nhật Sản Phẩm ✏️
+### 2.2 Đăng nhập Buyer
 
-**Endpoint:** `PUT /api/products/{id}`
-
-**PowerShell:**
-```powershell
-$updateBody = @{
-    productName = "iPhone 15 Pro Max - UPDATED"
-    price = 28990000
-} | ConvertTo-Json
-
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/1" -Method Put -Body $updateBody -ContentType "application/json" | ConvertTo-Json -Depth 10
+```
+POST http://localhost:8080/ecommerce/auth/login
+Content-Type: application/json
+```
+```json
+{
+  "email": "buyer@test.com",
+  "password": "Buyer@123"
+}
 ```
 
-**cURL:**
-```bash
-curl -X PUT http://localhost:8080/api/products/1 ^
-  -H "Content-Type: application/json" ^
-  -d "{\"productName\":\"iPhone 15 Pro Max - UPDATED\",\"price\":28990000}"
-```
-
-**✅ Kết quả:** Tên và giá sản phẩm được cập nhật
+**✅ Lưu lại**: `BUYER_TOKEN = result.token`
 
 ---
 
-## TEST 4: Tìm Kiếm Sản Phẩm 🔍
+### 2.3 Đăng nhập Seller
 
-**Endpoint:** `GET /api/products/search?keyword={keyword}&page=0&size=10`
-
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/search?keyword=iphone&page=0&size=10" -Method Get | ConvertTo-Json -Depth 10
+```
+POST http://localhost:8080/ecommerce/auth/login
+Content-Type: application/json
+```
+```json
+{
+  "email": "seller@test.com",
+  "password": "Seller@123"
+}
 ```
 
-**cURL:**
-```bash
-curl "http://localhost:8080/api/products/search?keyword=iphone&page=0&size=10"
-```
-
-**✅ Kết quả:** Danh sách sản phẩm có từ "iphone" trong tên hoặc mô tả
+**✅ Lưu lại**: `SELLER_TOKEN = result.token`
 
 ---
 
-## TEST 5: Lọc Sản Phẩm 🎯
+## 🗂️ PHASE 3 — TẠO CATEGORY (Admin)
 
-**Endpoint:** `POST /api/products/filter`
-
-**PowerShell:**
-```powershell
-$filterBody = @{
-    categoryId = 1
-    minPrice = 10000000
-    maxPrice = 35000000
-    page = 0
-    size = 10
-    sortBy = "price"
-    sortDirection = "ASC"
-} | ConvertTo-Json
-
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/filter" -Method Post -Body $filterBody -ContentType "application/json" | ConvertTo-Json -Depth 10
+```
+POST http://localhost:8080/ecommerce/api/v1/categories
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+```
+```json
+{
+  "name": "Điện tử",
+  "description": "Các sản phẩm điện tử",
+  "parentId": null,
+  "sortOrder": 1
+}
 ```
 
-**cURL:**
-```bash
-curl -X POST http://localhost:8080/api/products/filter ^
-  -H "Content-Type: application/json" ^
-  -d "{\"categoryId\":1,\"minPrice\":10000000,\"maxPrice\":35000000,\"page\":0,\"size\":10,\"sortBy\":\"price\",\"sortDirection\":\"ASC\"}"
+**Response mẫu:**
+```json
+{
+  "code": 201,
+  "message": "Category created successfully",
+  "result": {
+    "id": 1,
+    "name": "Điện tử"
+  }
+}
 ```
 
-**✅ Kết quả:** Sản phẩm được lọc theo category và khoảng giá, sắp xếp theo giá tăng dần
+**✅ Lưu lại**: `CATEGORY_ID = 1`
 
 ---
 
-## TEST 6: Sản Phẩm Theo Shop 🏪
+## 🏪 PHASE 4 — TẠO SHOP (Seller)
 
-**Endpoint:** `GET /api/products/shop/{shopId}?page=0&size=10`
+### 4.1 Seller nộp đơn đăng ký Shop
 
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/shop/1?page=0&size=10" -Method Get | ConvertTo-Json -Depth 10
+```
+POST http://localhost:8080/ecommerce/api/v1/shops/applications
+Authorization: Bearer {{SELLER_TOKEN}}
+Content-Type: application/json
+```
+```json
+{
+  "shopName": "Shop Tech Việt",
+  "description": "Chuyên bán đồ điện tử chính hãng",
+  "taxCode": "0123456789",
+  "taxAddress": "123 Nguyễn Văn Linh, TP.HCM",
+  "taxFullName": "Trần Thị Bán"
+}
 ```
 
-**cURL:**
-```bash
-curl "http://localhost:8080/api/products/shop/1?page=0&size=10"
+**Response mẫu:**
+```json
+{
+  "code": 201,
+  "message": "Đơn đăng ký gian hàng đã được nộp thành công, vui lòng chờ duyệt",
+  "result": {
+    "id": "abc-123-def",
+    "shopName": "Shop Tech Việt",
+    "status": "PENDING"
+  }
+}
 ```
 
-**✅ Kết quả:** Danh sách sản phẩm của shop có ID = 1
+**✅ Lưu lại**: `APPLICATION_ID = "abc-123-def"`
 
 ---
 
-## TEST 7: Sản Phẩm Mới Nhất 🆕
+### 4.2 Admin duyệt đơn Shop
 
-**Endpoint:** `GET /api/products/new-arrivals?page=0&size=10`
+```
+POST http://localhost:8080/ecommerce/api/v1/shops/applications/{{APPLICATION_ID}}/approve
+Authorization: Bearer {{ADMIN_TOKEN}}
+```
+*(Không cần body)*
 
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/new-arrivals?page=0&size=10" -Method Get | ConvertTo-Json -Depth 10
+**Response mẫu:**
+```json
+{
+  "message": "Đã duyệt đơn và tạo gian hàng thành công",
+  "result": {
+    "id": "abc-123-def",
+    "shopName": "Shop Tech Việt",
+    "status": "APPROVED"
+  }
+}
 ```
 
-**cURL:**
-```bash
-curl "http://localhost:8080/api/products/new-arrivals?page=0&size=10"
+> Sau khi approve, Seller sẽ tự động được gán role `SELLER`.  
+> **Cần re-login Seller** để lấy token mới có role SELLER:
+
+```
+POST http://localhost:8080/ecommerce/auth/login
+```
+```json
+{
+  "email": "seller@test.com",
+  "password": "Seller@123"
+}
 ```
 
-**✅ Kết quả:** Sản phẩm mới nhất, sắp xếp theo ngày tạo giảm dần
+**✅ Cập nhật lại**: `SELLER_TOKEN = result.token` (token mới có role SELLER)
 
 ---
 
-## TEST 8: Sản Phẩm Bán Chạy 🔥
+### 4.3 Lấy thông tin Shop của Seller
 
-**Endpoint:** `GET /api/products/top-selling?page=0&size=10`
-
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/top-selling?page=0&size=10" -Method Get | ConvertTo-Json -Depth 10
+```
+GET http://localhost:8080/ecommerce/api/v1/shops/me
+Authorization: Bearer {{SELLER_TOKEN}}
 ```
 
-**cURL:**
-```bash
-curl "http://localhost:8080/api/products/top-selling?page=0&size=10"
+**Response mẫu:**
+```json
+{
+  "result": {
+    "id": 1,
+    "shopName": "Shop Tech Việt"
+  }
+}
 ```
 
-**✅ Kết quả:** Sản phẩm bán chạy nhất (cần có order data để test đầy đủ)
+**✅ Lưu lại**: `SHOP_ID = 1`
 
 ---
 
-## TEST 9: Thêm Variant 🎨
+## 📦 PHASE 5 — TẠO PRODUCT & VARIANT (Seller)
 
-**Endpoint:** `POST /api/products/{productId}/variants`
+### 5.1 Tạo sản phẩm có sẵn Variant
 
-**PowerShell:**
-```powershell
-$variantBody = @{
-    variantName = "Titan Đen - 1TB"
-    price = 39990000
-    stockQuantity = 20
-    sku = "IP15PM-TD-1TB"
-} | ConvertTo-Json
+> ⚠️ **API này dùng `form-data`, KHÔNG phải `application/json`**  
+> Vì có `@ModelAttribute` để nhận cả text field lẫn file ảnh trong cùng 1 request.
 
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/1/variants" -Method Post -Body $variantBody -ContentType "application/json" | ConvertTo-Json -Depth 10
+```
+POST http://localhost:8080/ecommerce/api/products
+Authorization: Bearer {{SELLER_TOKEN}}
+Body: form-data  ← (chọn "form-data" trong Postman, KHÔNG phải "raw JSON")
 ```
 
-**cURL:**
-```bash
-curl -X POST http://localhost:8080/api/products/1/variants ^
-  -H "Content-Type: application/json" ^
-  -d "{\"variantName\":\"Titan Đen - 1TB\",\"price\":39990000,\"stockQuantity\":20,\"sku\":\"IP15PM-TD-1TB\"}"
+**Các field gửi trong form-data:**
+
+| Key | Type | Value |
+|-----|------|-------|
+| `productName` | Text | `Tai nghe Sony WH-1000XM5` |
+| `description` | Text | `Tai nghe không dây chống ồn cao cấp` |
+| `price` | Text | `7990000` |
+| `stockQuantity` | Text | `100` |
+| `categoryId` | Text | `1` |
+| `image` | File | *(chọn file ảnh .jpg/.png — optional, có thể bỏ trống)* |
+| `variants[0].variantName` | Text | `Màu Đen` |
+| `variants[0].price` | Text | `7990000` |
+| `variants[0].stockQuantity` | Text | `50` |
+| `variants[0].sku` | Text | `SONY-WH1000XM5-BLACK` |
+| `variants[1].variantName` | Text | `Màu Bạc` |
+| `variants[1].price` | Text | `7990000` |
+| `variants[1].stockQuantity` | Text | `50` |
+| `variants[1].sku` | Text | `SONY-WH1000XM5-SILVER` |
+
+> 💡 **Lưu ý**: Variants gửi theo kiểu **indexed field** (`variants[0].xxx`, `variants[1].xxx`).  
+> Spring Boot tự map vào `List<ProductVariantRequest>` khi dùng `@ModelAttribute`.
+
+
+
+**Response mẫu:**
+```json
+{
+  "result": {
+    "id": 1,
+    "productName": "Tai nghe Sony WH-1000XM5",
+    "variants": [
+      { "id": 1, "variantName": "Màu Đen", "stockQuantity": 50 },
+      { "id": 2, "variantName": "Màu Bạc", "stockQuantity": 50 }
+    ]
+  }
+}
 ```
 
-**✅ Kết quả:** Variant mới được thêm vào sản phẩm
+**✅ Lưu lại**:
+- `PRODUCT_ID = 1`
+- `VARIANT_ID_BLACK = 1`
+- `VARIANT_ID_SILVER = 2`
 
 ---
 
-## TEST 10: Cập Nhật Variant ✏️
+### 5.2 (Tuỳ chọn) Tạo thêm sản phẩm thứ 2 để test Multi-Vendor
 
-**Endpoint:** `PUT /api/products/variants/{variantId}`
-
-**PowerShell:**
-```powershell
-$updateVariantBody = @{
-    variantName = "Titan Đen - 1TB (Giảm giá)"
-    price = 37990000
-    stockQuantity = 25
-} | ConvertTo-Json
-
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/variants/1" -Method Put -Body $updateVariantBody -ContentType "application/json" | ConvertTo-Json -Depth 10
-```
-
-**cURL:**
-```bash
-curl -X PUT http://localhost:8080/api/products/variants/1 ^
-  -H "Content-Type: application/json" ^
-  -d "{\"variantName\":\"Titan Đen - 1TB (Giảm giá)\",\"price\":37990000,\"stockQuantity\":25}"
-```
-
-**✅ Kết quả:** Variant được cập nhật
+> Tạo thêm 1 Seller khác và 1 sản phẩm để test trường hợp Multi-Shop trong 1 đơn hàng.  
+> Bỏ qua nếu chỉ cần test basic.
 
 ---
 
-## TEST 11: Cập Nhật Tồn Kho 📦
+## 🛒 PHASE 6 — THÊM VÀO GIỎ HÀNG (Buyer)
 
-**Endpoint:** `PATCH /api/products/variants/{variantId}/stock?quantity={quantity}`
+### 6.1 Xem giỏ hàng hiện tại
 
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/variants/1/stock?quantity=150" -Method Patch | ConvertTo-Json -Depth 10
 ```
-
-**cURL:**
-```bash
-curl -X PATCH "http://localhost:8080/api/products/variants/1/stock?quantity=150"
+GET http://localhost:8080/ecommerce/api/v1/cart
+Authorization: Bearer {{BUYER_TOKEN}}
 ```
-
-**✅ Kết quả:** Số lượng tồn kho được cập nhật thành 150
 
 ---
 
-## TEST 12: Xóa Variant 🗑️
+### 6.2 Thêm sản phẩm vào giỏ (Variant Đen, qty=2)
 
-**Endpoint:** `DELETE /api/products/variants/{variantId}`
-
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/variants/3" -Method Delete | ConvertTo-Json -Depth 10
+```
+POST http://localhost:8080/ecommerce/api/v1/cart/items
+Authorization: Bearer {{BUYER_TOKEN}}
+Content-Type: application/json
+```
+```json
+{
+  "productId": 1,
+  "variantId": 1,
+  "quantity": 2
+}
 ```
 
-**cURL:**
-```bash
-curl -X DELETE http://localhost:8080/api/products/variants/3
+**Response mẫu:**
+```json
+{
+  "message": "Item added to cart",
+  "result": {
+    "items": [
+      {
+        "cartItemId": "cart-item-uuid-001",
+        "productName": "Tai nghe Sony WH-1000XM5",
+        "variantName": "Màu Đen",
+        "quantity": 2
+      }
+    ]
+  }
+}
 ```
 
-**✅ Kết quả:** Variant bị xóa (nếu không trong order active)
+**✅ Lưu lại**: `CART_ITEM_ID_1 = "cart-item-uuid-001"`
 
 ---
 
-## TEST 13: Xóa Sản Phẩm (Soft Delete) 🗑️
+### 6.3 Thêm thêm 1 sản phẩm nữa (Variant Bạc, qty=1)
 
-**Endpoint:** `DELETE /api/products/{id}`
-
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/1" -Method Delete | ConvertTo-Json -Depth 10
+```
+POST http://localhost:8080/ecommerce/api/v1/cart/items
+Authorization: Bearer {{BUYER_TOKEN}}
+Content-Type: application/json
+```
+```json
+{
+  "productId": 1,
+  "variantId": 2,
+  "quantity": 1
+}
 ```
 
-**cURL:**
-```bash
-curl -X DELETE http://localhost:8080/api/products/1
-```
-
-**✅ Kết quả:** Sản phẩm bị ẩn (available = false), không xóa khỏi DB
+**✅ Lưu lại**: `CART_ITEM_ID_2 = "cart-item-uuid-002"`
 
 ---
 
-## TEST 14: Admin Ẩn Sản Phẩm 🚫
+### 6.4 Validate giỏ hàng trước khi checkout
 
-**Endpoint:** `PATCH /api/products/{id}/hide`
-
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/1/hide" -Method Patch | ConvertTo-Json -Depth 10
+```
+GET http://localhost:8080/ecommerce/api/v1/cart/validate
+Authorization: Bearer {{BUYER_TOKEN}}
 ```
 
-**cURL:**
-```bash
-curl -X PATCH http://localhost:8080/api/products/1/hide
-```
-
-**✅ Kết quả:** Admin ẩn sản phẩm vi phạm
+> Kiểm tra stock và giá trước khi tiến hành checkout.
 
 ---
 
-## TEST 15: Admin Xem Tất Cả Sản Phẩm 👁️
+---
 
-**Endpoint:** `GET /api/products/admin/all?page=0&size=10`
+## ✅ PHASE 7 — TEST ORDERSERVICE (Mục tiêu chính)
 
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/products/admin/all?page=0&size=10" -Method Get | ConvertTo-Json -Depth 10
-```
-
-**cURL:**
-```bash
-curl "http://localhost:8080/api/products/admin/all?page=0&size=10"
-```
-
-**✅ Kết quả:** Hiển thị tất cả sản phẩm kể cả đã ẩn
+> **⚠️ Đây là phần quan trọng nhất!**  
+> Dùng `BUYER_TOKEN` và `cartItemIds` đã lưu từ Phase 6.
 
 ---
 
-## 🔍 KIỂM TRA DATABASE
+## 🔍 TEST CASE 1 — CHECKOUT PREVIEW
 
-Sau khi test, kiểm tra database:
+**Mục đích**: Đọc thông tin đơn hàng TRƯỚC KHI đặt (read-only, không tạo gì).
+
+```
+POST http://localhost:8080/ecommerce/api/v1/checkouts/preview
+Authorization: Bearer {{BUYER_TOKEN}}
+Content-Type: application/json
+```
+```json
+{
+  "cartItemIds": ["cart-item-uuid-001", "cart-item-uuid-002"]
+}
+```
+
+**Expected Response (200 OK):**
+```json
+{
+  "code": 200,
+  "message": "Thông tin đơn hàng",
+  "result": {
+    "subtotal": 23970000,
+    "shippingFee": 0,
+    "discountAmount": 0,
+    "finalAmount": 23970000,
+    "totalItems": 3,
+    "totalDistinctItems": 2,
+    "availablePaymentMethods": ["COD", "SEPAY"],
+    "items": [
+      {
+        "cartItemId": "cart-item-uuid-001",
+        "variantId": 1,
+        "variantName": "Màu Đen",
+        "productName": "Tai nghe Sony WH-1000XM5",
+        "quantity": 2,
+        "price": 7990000,
+        "subtotal": 15980000,
+        "availableStock": 50
+      },
+      {
+        "cartItemId": "cart-item-uuid-002",
+        "variantId": 2,
+        "variantName": "Màu Bạc",
+        "productName": "Tai nghe Sony WH-1000XM5",
+        "quantity": 1,
+        "price": 7990000,
+        "subtotal": 7990000,
+        "availableStock": 50
+      }
+    ]
+  }
+}
+```
+
+**Điều cần kiểm tra:**
+- [ ] `subtotal = 2×7,990,000 + 1×7,990,000 = 23,970,000`
+- [ ] `totalItems = 3` (2 + 1)
+- [ ] `totalDistinctItems = 2`
+- [ ] `availablePaymentMethods` chứa cả `COD` và `SEPAY`
+- [ ] Không có gì thay đổi trong DB (cart vẫn còn)
+
+---
+
+## 🏦 TEST CASE 2 — CHECKOUT COD
+
+**Mục đích**: Đặt hàng thanh toán khi nhận hàng — stock bị trừ ngay, cart bị xóa.
+
+```
+POST http://localhost:8080/ecommerce/api/v1/orders
+Authorization: Bearer {{BUYER_TOKEN}}
+Content-Type: application/json
+```
+```json
+{
+  "cartItemIds": ["cart-item-uuid-001", "cart-item-uuid-002"],
+  "paymentMethod": "COD"
+}
+```
+
+**Expected Response (200 OK):**
+```json
+{
+  "code": 200,
+  "message": "Đặt hàng thành công",
+  "result": {
+    "orderId": 1,
+    "status": "PENDING",
+    "paymentMethod": "COD",
+    "totalAmount": 23970000,
+    "discountAmount": 0,
+    "finalAmount": 23970000,
+    "totalShops": 1,
+    "totalItems": 3,
+    "paymentUrl": null,
+    "shopOrders": [
+      {
+        "shopOrderId": 1,
+        "shopId": 1,
+        "shopName": "Shop Tech Việt",
+        "status": "PENDING",
+        "shopTotalAmount": 23970000,
+        "items": [
+          {
+            "orderItemId": 1,
+            "variantId": 1,
+            "variantName": "Màu Đen",
+            "sku": "SONY-WH1000XM5-BLACK",
+            "productName": "Tai nghe Sony WH-1000XM5",
+            "quantity": 2,
+            "priceAtBuy": 7990000,
+            "subtotal": 15980000
+          },
+          {
+            "orderItemId": 2,
+            "variantId": 2,
+            "variantName": "Màu Bạc",
+            "sku": "SONY-WH1000XM5-SILVER",
+            "productName": "Tai nghe Sony WH-1000XM5",
+            "quantity": 1,
+            "priceAtBuy": 7990000,
+            "subtotal": 7990000
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Điều cần kiểm tra:**
+- [ ] `status = "PENDING"` (COD → PENDING)
+- [ ] `paymentUrl = null` (COD không cần QR)
+- [ ] Stock đã bị trừ: Variant Đen: 50→48, Variant Bạc: 50→49
+- [ ] Giỏ hàng bị xóa (gọi GET /api/v1/cart → items rỗng)
+- [ ] Không có bản ghi Payment nào được tạo
+
+**Kiểm tra stock sau COD:**
+```
+GET http://localhost:8080/ecommerce/api/products/1
+```
+> Xem `variants[].stockQuantity` đã giảm chưa.
+
+**Kiểm tra cart đã clear:**
+```
+GET http://localhost:8080/ecommerce/api/v1/cart
+Authorization: Bearer {{BUYER_TOKEN}}
+```
+> Kết quả phải là cart rỗng.
+
+---
+
+> ⚠️ **Trước khi test SEPAY**: Cần thêm lại sản phẩm vào giỏ hàng (vì cart đã bị xóa sau COD).  
+> Lặp lại **Phase 6.2 và 6.3** để thêm lại sản phẩm và lưu `cartItemIds` mới.
+
+---
+
+## 💳 TEST CASE 3 — CHECKOUT SEPAY
+
+**Mục đích**: Đặt hàng thanh toán online — tạo QR, stock CHƯA bị trừ, cart CHƯA bị xóa.
+
+> Giả sử sau khi thêm lại cart: `CART_ITEM_ID_3`, `CART_ITEM_ID_4`
+
+```
+POST http://localhost:8080/ecommerce/api/v1/orders
+Authorization: Bearer {{BUYER_TOKEN}}
+Content-Type: application/json
+```
+```json
+{
+  "cartItemIds": ["cart-item-uuid-003", "cart-item-uuid-004"],
+  "paymentMethod": "SEPAY"
+}
+```
+
+**Expected Response (200 OK):**
+```json
+{
+  "code": 200,
+  "message": "Đơn hàng đã tạo — vui lòng quét QR để thanh toán",
+  "result": {
+    "orderId": 2,
+    "status": "PENDING_PAYMENT",
+    "paymentMethod": "SEPAY",
+    "totalAmount": 23970000,
+    "finalAmount": 23970000,
+    "paymentUrl": "https://qr.sepay.vn/img?...",
+    "shopOrders": [ ... ]
+  }
+}
+```
+
+**Điều cần kiểm tra:**
+- [ ] `status = "PENDING_PAYMENT"` (SEPAY → chờ thanh toán)
+- [ ] `paymentUrl` khác `null` (có URL QR)
+- [ ] Stock CHƯA thay đổi (Variant Đen vẫn = 48, Variant Bạc vẫn = 49)
+- [ ] Cart CHƯA bị xóa (gọi GET /api/v1/cart vẫn thấy items)
+- [ ] Trong DB có bản ghi `Payment` với `status = PENDING`, `transactionRef = "ORDER_2"`
+
+**✅ Lưu lại**: `ORDER_ID_SEPAY = 2`
+
+---
+
+## 🔔 TEST CASE 4 — GIẢ LẬP SEPAY WEBHOOK (Thanh toán thành công)
+
+**Mục đích**: Mô phỏng SePay gọi webhook về khi user đã chuyển khoản thành công.  
+**⚠️ Endpoint này là PUBLIC — KHÔNG cần JWT.**
+
+```
+POST http://localhost:8080/ecommerce/api/v1/payments/sepay/webhook
+Content-Type: application/json
+```
+```json
+{
+  "id": 999001,
+  "gateway": "VietinBank",
+  "transactionDate": "2026-05-25 10:30:00",
+  "accountNumber": "113366668888",
+  "content": "ORDER_2",
+  "transferAmount": 23970000,
+  "referenceCode": "SEPAY-TXN-20260525-001",
+  "description": "Chuyen khoan thanh toan ORDER_2"
+}
+```
+
+> **Quan trọng**: `"content"` phải = `"ORDER_{{ORDER_ID_SEPAY}}"` để hệ thống match được.  
+> `"transferAmount"` phải ≥ số tiền của order.
+
+**Expected Response (200 OK, body rỗng)**
+
+**Điều cần kiểm tra SAU webhook:**
+- [ ] `Order.status = "PAID"`
+- [ ] `Payment.status = "SUCCESS"`, `transactionId = "SEPAY-TXN-20260525-001"`
+- [ ] Stock đã bị trừ: Variant Đen 48→46, Variant Bạc 49→48
+- [ ] Cart đã bị xóa (GET /api/v1/cart → rỗng)
+
+```
+GET http://localhost:8080/ecommerce/api/products/1
+```
+> Kiểm tra stock đã giảm.
+
+```
+GET http://localhost:8080/ecommerce/api/v1/cart
+Authorization: Bearer {{BUYER_TOKEN}}
+```
+> Kiểm tra cart đã rỗng.
+
+---
+
+## 🧨 TEST CASE 5 — SEPAY WEBHOOK IDEMPOTENCY
+
+**Mục đích**: Gọi webhook lần 2 (SePay retry) → hệ thống phải xử lý an toàn, không trừ stock 2 lần.
+
+```
+POST http://localhost:8080/ecommerce/api/v1/payments/sepay/webhook
+Content-Type: application/json
+```
+```json
+{
+  "id": 999001,
+  "gateway": "VietinBank",
+  "transactionDate": "2026-05-25 10:30:00",
+  "accountNumber": "113366668888",
+  "content": "ORDER_2",
+  "transferAmount": 23970000,
+  "referenceCode": "SEPAY-TXN-20260525-001",
+  "description": "Chuyen khoan thanh toan ORDER_2 (retry)"
+}
+```
+
+**Expected**: HTTP 200 OK (không lỗi).  
+**Điều cần kiểm tra**: Stock KHÔNG bị trừ thêm lần nữa (idempotency).
+
+---
+
+## ❌ TEST CASE 6 — CÁC TRƯỜNG HỢP LỖI
+
+### 6.1 Checkout với cartItemIds rỗng
+
+```
+POST http://localhost:8080/ecommerce/api/v1/orders
+Authorization: Bearer {{BUYER_TOKEN}}
+Content-Type: application/json
+```
+```json
+{
+  "cartItemIds": [],
+  "paymentMethod": "COD"
+}
+```
+**Expected**: `400 Bad Request` — "Danh sách sản phẩm không được trống"
+
+---
+
+### 6.2 Checkout với cartItemId không tồn tại
+
+```
+POST http://localhost:8080/ecommerce/api/v1/orders
+Authorization: Bearer {{BUYER_TOKEN}}
+Content-Type: application/json
+```
+```json
+{
+  "cartItemIds": ["fake-cart-item-id-9999"],
+  "paymentMethod": "COD"
+}
+```
+**Expected**: `4xx Error` — CART_ITEM_NOT_FOUND
+
+---
+
+### 6.3 Checkout với stock không đủ
+
+> Cập nhật stock về 0:
+```
+PATCH http://localhost:8080/ecommerce/api/products/variants/1/stock?quantity=0
+Authorization: Bearer {{SELLER_TOKEN}}
+```
+> Sau đó thêm sản phẩm vào cart và checkout:
+
+```
+POST http://localhost:8080/ecommerce/api/v1/orders
+Authorization: Bearer {{BUYER_TOKEN}}
+Content-Type: application/json
+```
+```json
+{
+  "cartItemIds": ["new-cart-item-id"],
+  "paymentMethod": "COD"
+}
+```
+**Expected**: `4xx Error` — OutOfStockException
+
+---
+
+### 6.4 Webhook với amount nhỏ hơn order amount
+
+```
+POST http://localhost:8080/ecommerce/api/v1/payments/sepay/webhook
+Content-Type: application/json
+```
+```json
+{
+  "id": 999002,
+  "gateway": "VietinBank",
+  "transactionDate": "2026-05-25 11:00:00",
+  "accountNumber": "113366668888",
+  "content": "ORDER_2",
+  "transferAmount": 1000,
+  "referenceCode": "SEPAY-TXN-WRONG",
+  "description": "So tien sai"
+}
+```
+**Expected**: HTTP 200 OK (không throw, nhưng Payment.status → FAILED)
+
+---
+
+### 6.5 Checkout không có JWT
+
+```
+POST http://localhost:8080/ecommerce/api/v1/orders
+Content-Type: application/json
+```
+```json
+{
+  "cartItemIds": ["cart-item-uuid-001"],
+  "paymentMethod": "COD"
+}
+```
+**Expected**: `401 Unauthorized`
+
+---
+
+## 📊 TỔNG HỢP ENDPOINTS ORDERSERVICE
+
+| # | Method | URL | Auth | Mô tả |
+|---|--------|-----|------|-------|
+| 1 | POST | `/api/v1/checkouts/preview` | JWT (Buyer) | Xem trước đơn hàng |
+| 2 | POST | `/api/v1/orders` | JWT (Buyer) | Đặt hàng (COD / SEPAY) |
+| 3 | POST | `/api/v1/payments/sepay/webhook` | Public | Callback từ SePay |
+
+---
+
+## 🗄️ KIỂM TRA DATABASE (Tham khảo)
+
+Sau mỗi bước, bạn có thể query DB để xác nhận:
 
 ```sql
-mysql -u root -p Ecommorce
+-- Xem danh sách Orders
+SELECT * FROM orders ORDER BY created_at DESC LIMIT 10;
 
--- Xem sản phẩm
-SELECT id, product_name, price, available FROM products;
+-- Xem ShopOrders theo orderId
+SELECT * FROM shop_orders WHERE order_id = 2;
 
--- Xem variants
-SELECT id, product_id, variant_name, sku, stock_quantity FROM product_variants;
+-- Xem OrderItems theo orderId
+SELECT oi.* FROM order_items oi
+JOIN shop_orders so ON oi.shop_order_id = so.id
+WHERE so.order_id = 2;
 
--- Xem sản phẩm đã ẩn
-SELECT id, product_name, available FROM products WHERE available = false;
+-- Xem Payment của order
+SELECT * FROM payments WHERE order_id = 2;
 
--- Xem relationship
-SELECT 
-    p.id,
-    p.product_name,
-    s.shop_name,
-    c.category_name,
-    COUNT(pv.id) as variant_count
-FROM products p
-JOIN shops s ON p.shop_id = s.id
-JOIN categories c ON p.category_id = c.id
-LEFT JOIN product_variants pv ON pv.product_id = p.id
-GROUP BY p.id;
+-- Kiểm tra stock hiện tại
+SELECT id, variant_name, stock_quantity FROM product_variants WHERE product_id = 1;
+
+-- Xem CartItems còn lại của buyer
+SELECT ci.* FROM cart_items ci
+JOIN carts c ON ci.cart_id = c.id
+JOIN users u ON c.user_id = u.id
+WHERE u.email = 'buyer@test.com';
 ```
 
 ---
 
-## 🐛 TROUBLESHOOTING
+## ⚙️ POSTMAN COLLECTION VARIABLES (Khuyến nghị)
 
-### Lỗi 1: Connection refused
-```
-Nguyên nhân: Server chưa chạy
-Giải pháp: Chạy mvn spring-boot:run
-```
+Tạo các biến môi trường trong Postman:
 
-### Lỗi 2: MySQL connection failed
-```
-Nguyên nhân: Sai password hoặc MySQL chưa chạy
-Giải pháp: 
-1. Kiểm tra MySQL đang chạy
-2. Sửa password trong application.yaml
-```
-
-### Lỗi 3: Table doesn't exist
-```
-Nguyên nhân: Chưa tạo database hoặc chưa import data
-Giải pháp: Chạy lại BƯỚC 1
-```
-
-### Lỗi 4: Port 8080 already in use
-```
-Nguyên nhân: Port bị chiếm
-Giải pháp:
-# Windows
-netstat -ano | findstr :8080
-taskkill /PID <PID> /F
-```
-
-### Lỗi 5: SKU đã tồn tại
-```
-Nguyên nhân: Tạo variant với SKU trùng
-Giải pháp: Đổi SKU khác (ví dụ: IP15PM-TD-1TB-V2)
-```
+| Variable | Value |
+|----------|-------|
+| `BASE_URL` | `http://localhost:8080/ecommerce` |
+| `ADMIN_TOKEN` | *(paste từ login response)* |
+| `BUYER_TOKEN` | *(paste từ login response)* |
+| `SELLER_TOKEN` | *(paste từ login response)* |
+| `CATEGORY_ID` | `1` |
+| `PRODUCT_ID` | `1` |
+| `VARIANT_ID_BLACK` | `1` |
+| `VARIANT_ID_SILVER` | `2` |
+| `CART_ITEM_ID_1` | *(paste từ add-to-cart response)* |
+| `CART_ITEM_ID_2` | *(paste từ add-to-cart response)* |
+| `ORDER_ID_SEPAY` | *(paste từ SEPAY checkout response)* |
 
 ---
 
-## 📊 CHECKLIST TEST
-
-- [ ] Tạo sản phẩm thành công
-- [ ] Lấy chi tiết sản phẩm
-- [ ] Cập nhật sản phẩm
-- [ ] Tìm kiếm sản phẩm
-- [ ] Lọc sản phẩm
-- [ ] Lấy sản phẩm theo shop
-- [ ] Sản phẩm mới nhất
-- [ ] Sản phẩm bán chạy
-- [ ] Thêm variant
-- [ ] Cập nhật variant
-- [ ] Cập nhật tồn kho
-- [ ] Xóa variant
-- [ ] Xóa sản phẩm (soft delete)
-- [ ] Admin ẩn sản phẩm
-- [ ] Admin xem tất cả
-
----
-
-## 🎉 KẾT LUẬN
-
-Nếu tất cả 15 tests đều pass, bạn đã test thành công **Product Management Module**!
-
-**Các tính năng đã hoạt động:**
-- ✅ CRUD sản phẩm với validation
-- ✅ Quản lý variants (màu, size, SKU)
-- ✅ Tìm kiếm & lọc nâng cao
-- ✅ Soft delete (không xóa cứng)
-- ✅ Authorization (chỉ chủ shop mới sửa/xóa)
-- ✅ Admin moderation
-
-**Next steps:**
-- Implement JWT Authentication
-- Implement Order Management
-- Implement Cart Management
-- Implement Review & Rating
+*Generated for GreenShop E-Commerce — OrderService Testing Guide*  
+*Base URL: `http://localhost:8080/ecommerce` | Port: 8080*
