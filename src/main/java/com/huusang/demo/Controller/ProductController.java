@@ -1,209 +1,242 @@
 package com.huusang.demo.Controller;
 
+import com.huusang.demo.Dto.ApiResponse;
 import com.huusang.demo.Dto.Request.*;
-import com.huusang.demo.Dto.Response.ApiResponse;
 import com.huusang.demo.Dto.Response.ProductResponse;
 import com.huusang.demo.Dto.Response.ProductVariantResponse;
 import com.huusang.demo.Service.ProductService;
 import jakarta.validation.Valid;
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/products")
 @RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ProductController {
 
-    private final ProductService productService;
+    ProductService productService;
 
     // ==================== SELLER ENDPOINTS ====================
 
     /**
-     * POST /api/products
+     * POST /products
      * Tạo sản phẩm mới kèm ảnh.
-     * <p>
-     * Postman: Body → form-data (không cần set Content-Type thủ công)
-     *   productName   (Text) → "Tai nghe Sony"
-     *   description   (Text) → "Mô tả..."
-     *   price         (Text) → 7990000
-     *   stockQuantity (Text) → 100
-     *   categoryId    (Text) → 1
-     *   image         (File) → [chọn file ảnh, optional]
+     * Postman: Body → form-data
+     *   productName, description, price, stockQuantity, categoryId → Text
+     *   image → File (optional)
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
-            @ModelAttribute @Valid ProductCreateRequest request,
-            Authentication authentication) {
+    public ApiResponse<ProductResponse> createProduct(
+            @AuthenticationPrincipal Jwt jwt,
+            @ModelAttribute @Valid ProductCreateRequest request) {
 
-        ProductResponse response = productService.createProduct(request, authentication.getName());
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Tạo sản phẩm thành công", response));
+        return ApiResponse.<ProductResponse>builder()
+                .code(201)
+                .message("Tạo sản phẩm thành công")
+                .result(productService.createProduct(request, getEmail(jwt)))
+                .build();
     }
 
     /**
-     * PUT /api/products/{id}
+     * PUT /products/{id}
      * Cập nhật thông tin sản phẩm (ảnh tùy chọn).
-     * <p>
      * Postman: Body → form-data
-     *   productName   (Text, optional) → tên mới
-     *   price         (Text, optional) → giá mới
-     *   image         (File, optional) → ảnh mới, không gửi = giữ ảnh cũ
      */
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
+    public ApiResponse<ProductResponse> updateProduct(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id,
-            @ModelAttribute @Valid ProductUpdateRequest request,
-            Authentication authentication) {
+            @ModelAttribute @Valid ProductUpdateRequest request) {
 
-        ProductResponse response = productService.updateProduct(id, request, authentication.getName());
-        return ResponseEntity.ok(ApiResponse.success("Cập nhật sản phẩm thành công", response));
+        return ApiResponse.<ProductResponse>builder()
+                .message("Cập nhật sản phẩm thành công")
+                .result(productService.updateProduct(id, request, getEmail(jwt)))
+                .build();
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ApiResponse<Void>> deleteProduct(
-            @PathVariable Long id,
-            Authentication authentication) {
+    public ApiResponse<Void> deleteProduct(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id) {
 
-        productService.deleteProduct(id, authentication.getName());
-        return ResponseEntity.ok(ApiResponse.success("Xóa sản phẩm thành công", null));
+        productService.deleteProduct(id, getEmail(jwt));
+        return ApiResponse.<Void>builder()
+                .message("Xóa sản phẩm thành công")
+                .build();
     }
 
     // ==================== PUBLIC ENDPOINTS ====================
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable Long id) {
-        ProductResponse response = productService.getProductById(id);
-        return ResponseEntity.ok(ApiResponse.success(response));
+    public ApiResponse<ProductResponse> getProductById(@PathVariable Long id) {
+        return ApiResponse.<ProductResponse>builder()
+                .message("Thông tin sản phẩm")
+                .result(productService.getProductById(id))
+                .build();
     }
 
     @GetMapping("/shop/{shopId}")
-    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getProductsByShop(
+    public ApiResponse<Page<ProductResponse>> getProductsByShop(
             @PathVariable Long shopId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Page<ProductResponse> response = productService.getProductsByShop(shopId, page, size);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ApiResponse.<Page<ProductResponse>>builder()
+                .message("Danh sách sản phẩm của shop")
+                .result(productService.getProductsByShop(shopId, page, size))
+                .build();
     }
 
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<Page<ProductResponse>>> searchProducts(
+    public ApiResponse<Page<ProductResponse>> searchProducts(
             @RequestParam String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Page<ProductResponse> response = productService.searchProducts(keyword, page, size);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ApiResponse.<Page<ProductResponse>>builder()
+                .message("Kết quả tìm kiếm")
+                .result(productService.searchProducts(keyword, page, size))
+                .build();
     }
 
     @PostMapping("/filter")
-    public ResponseEntity<ApiResponse<Page<ProductResponse>>> filterProducts(
+    public ApiResponse<Page<ProductResponse>> filterProducts(
             @RequestBody ProductFilterRequest request) {
 
-        Page<ProductResponse> response = productService.filterProducts(request);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ApiResponse.<Page<ProductResponse>>builder()
+                .message("Kết quả lọc sản phẩm")
+                .result(productService.filterProducts(request))
+                .build();
     }
 
     @GetMapping("/top-selling")
-    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getTopSellingProducts(
+    public ApiResponse<Page<ProductResponse>> getTopSellingProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Long shopId) {
 
-        Page<ProductResponse> response = productService.getTopSellingProducts(page, size, shopId);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ApiResponse.<Page<ProductResponse>>builder()
+                .message("Sản phẩm bán chạy nhất")
+                .result(productService.getTopSellingProducts(page, size, shopId))
+                .build();
     }
 
     @GetMapping("/new-arrivals")
-    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getNewArrivals(
+    public ApiResponse<Page<ProductResponse>> getNewArrivals(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Page<ProductResponse> response = productService.getNewArrivals(page, size);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ApiResponse.<Page<ProductResponse>>builder()
+                .message("Sản phẩm mới nhất")
+                .result(productService.getNewArrivals(page, size))
+                .build();
     }
 
     // ==================== VARIANT ENDPOINTS ====================
 
     @PostMapping("/{productId}/variants")
+    @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ApiResponse<ProductVariantResponse>> addVariant(
+    public ApiResponse<ProductVariantResponse> addVariant(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long productId,
-            @Valid @RequestBody ProductVariantRequest request,
-            Authentication authentication) {
+            @Valid @RequestBody ProductVariantRequest request) {
 
-        ProductVariantResponse response = productService.addVariant(productId, request, authentication.getName());
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Thêm variant thành công", response));
+        return ApiResponse.<ProductVariantResponse>builder()
+                .code(201)
+                .message("Thêm variant thành công")
+                .result(productService.addVariant(productId, request, getEmail(jwt)))
+                .build();
     }
 
     @PutMapping("/variants/{variantId}")
     @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ApiResponse<ProductVariantResponse>> updateVariant(
+    public ApiResponse<ProductVariantResponse> updateVariant(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long variantId,
-            @Valid @RequestBody ProductVariantUpdateRequest request,
-            Authentication authentication) {
+            @Valid @RequestBody ProductVariantUpdateRequest request) {
 
-        ProductVariantResponse response = productService.updateVariant(variantId, request, authentication.getName());
-        return ResponseEntity.ok(ApiResponse.success("Cập nhật variant thành công", response));
+        return ApiResponse.<ProductVariantResponse>builder()
+                .message("Cập nhật variant thành công")
+                .result(productService.updateVariant(variantId, request, getEmail(jwt)))
+                .build();
     }
 
     @DeleteMapping("/variants/{variantId}")
     @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ApiResponse<Void>> deleteVariant(
-            @PathVariable Long variantId,
-            Authentication authentication) {
+    public ApiResponse<Void> deleteVariant(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long variantId) {
 
-        productService.deleteVariant(variantId, authentication.getName());
-        return ResponseEntity.ok(ApiResponse.success("Xóa variant thành công", null));
+        productService.deleteVariant(variantId, getEmail(jwt));
+        return ApiResponse.<Void>builder()
+                .message("Xóa variant thành công")
+                .build();
     }
 
     @PatchMapping("/variants/{variantId}/stock")
     @PreAuthorize("hasRole('SELLER')")
-    public ResponseEntity<ApiResponse<ProductVariantResponse>> updateStock(
+    public ApiResponse<ProductVariantResponse> updateStock(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long variantId,
-            @RequestParam Integer quantity,
-            Authentication authentication) {
+            @RequestParam Integer quantity) {
 
-        ProductVariantResponse response = productService.updateStock(variantId, quantity, authentication.getName());
-        return ResponseEntity.ok(ApiResponse.success("Cập nhật tồn kho thành công", response));
+        return ApiResponse.<ProductVariantResponse>builder()
+                .message("Cập nhật tồn kho thành công")
+                .result(productService.updateStock(variantId, quantity, getEmail(jwt)))
+                .build();
     }
 
     // ==================== ADMIN ENDPOINTS ====================
 
     @PatchMapping("/{id}/hide")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> adminHideProduct(@PathVariable Long id) {
+    public ApiResponse<Void> adminHideProduct(@PathVariable Long id) {
         productService.adminHideProduct(id);
-        return ResponseEntity.ok(ApiResponse.success("Đã ẩn sản phẩm vi phạm", null));
+        return ApiResponse.<Void>builder()
+                .message("Đã ẩn sản phẩm vi phạm")
+                .build();
     }
 
     @PatchMapping("/{id}/unhide")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> adminUnhideProduct(@PathVariable Long id) {
+    public ApiResponse<Void> adminUnhideProduct(@PathVariable Long id) {
         productService.adminUnhideProduct(id);
-        return ResponseEntity.ok(ApiResponse.success("Đã mở lại sản phẩm", null));
+        return ApiResponse.<Void>builder()
+                .message("Đã mở lại sản phẩm")
+                .build();
     }
 
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Page<ProductResponse>>> getAllProductsForAdmin(
+    public ApiResponse<Page<ProductResponse>> getAllProductsForAdmin(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Page<ProductResponse> response = productService.getAllProductsForAdmin(page, size);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ApiResponse.<Page<ProductResponse>>builder()
+                .message("Danh sách tất cả sản phẩm")
+                .result(productService.getAllProductsForAdmin(page, size))
+                .build();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  HELPER
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private String getEmail(Jwt jwt) {
+        return jwt.getSubject(); // JWT subject là email (xem AuthService.generateToken)
     }
 }
