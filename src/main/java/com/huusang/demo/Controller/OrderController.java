@@ -4,6 +4,7 @@ import com.huusang.demo.Dto.ApiResponse;
 import com.huusang.demo.Dto.Request.CheckoutPreviewRequest;
 import com.huusang.demo.Dto.Request.CheckoutRequest;
 import com.huusang.demo.Dto.Request.SePayWebhookRequest;
+import com.huusang.demo.Dto.Request.UpdateShopOrderStatusRequest;
 import com.huusang.demo.Dto.Response.CheckoutPreviewResponse;
 import com.huusang.demo.Dto.Response.OrderResponse;
 import com.huusang.demo.Service.OrderService;
@@ -14,6 +15,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -95,6 +97,27 @@ public class OrderController {
         log.info("SePay webhook hit: content='{}', amount={}", request.getContent(), request.getTransferAmount());
         orderService.handleSePayCallback(request);
         return ResponseEntity.ok().build();
+    }
+
+    // ─── UPDATE SHOP ORDER STATUS ────────────────────────────────────────────────
+    /**
+     * PUT /api/v1/shop-orders/{id}/status
+     * Seller cập nhật trạng thái ShopOrder.
+     * Khi status = COMPLETED, tự động tính commission và cộng tiền vào ví shop.
+     * Quyền: SELLER (chỉ update shop order của shop mình)
+     */
+    @PutMapping("/api/v1/shop-orders/{id}/status")
+    @PreAuthorize("hasRole('SELLER')")
+    public ApiResponse<Void> updateShopOrderStatus(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateShopOrderStatusRequest request) {
+
+        orderService.updateShopOrderStatus(getUserEmail(jwt), id, request.getStatus());
+
+        return ApiResponse.<Void>builder()
+                .message("Cập nhật trạng thái đơn hàng thành công")
+                .build();
     }
 
     // ─── HELPER ──────────────────────────────────────────────────────────────────

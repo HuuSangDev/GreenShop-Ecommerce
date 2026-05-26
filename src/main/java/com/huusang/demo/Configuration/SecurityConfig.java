@@ -52,6 +52,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/payments/sepay/webhook").permitAll()
                         // Thông tin public của shop — khách xem không cần đăng nhập
                         .requestMatchers("GET", "/api/v1/shops/{id}").permitAll()
+                        // Products public — khách xem sản phẩm không cần đăng nhập
+                        .requestMatchers("GET", "/products/shop/**").permitAll()
+                        .requestMatchers("GET", "/products/{id}").permitAll()
+                        .requestMatchers("GET", "/products/search").permitAll()
+                        .requestMatchers("GET", "/products/top-selling").permitAll()
+                        .requestMatchers("GET", "/products/new-arrivals").permitAll()
+                        .requestMatchers("POST", "/products/filter").permitAll()
                         // Ảnh tĩnh local — phục vụ qua /images/**, không cần JWT
                         .requestMatchers("/images/**").permitAll()
                         .anyRequest().authenticated());

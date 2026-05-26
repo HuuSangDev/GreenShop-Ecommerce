@@ -32,3 +32,19 @@ SELECT CONSTRAINT_NAME, TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENC
 FROM information_schema.KEY_COLUMN_USAGE
 WHERE TABLE_SCHEMA = 'Ecommerce'
   AND TABLE_NAME = 'order_items';
+
+
+-- ============================================================
+-- FIX: commissions.shop_order_id FK trỏ sai vào bảng `shops`
+-- thay vì `shop_orders`.
+-- Nguyên nhân: Hibernate ddl-auto=update giữ lại FK cũ từ lúc thiết kế nhầm.
+-- ============================================================
+-- BƯỚC 1: Drop foreign key sai (FK7n385omxlsk5jrc2m2ejy85s8) trỏ vào bảng shops
+ALTER TABLE commissions DROP FOREIGN KEY FK7n385omxlsk5jrc2m2ejy85s8;
+
+-- BƯỚC 2: Kiểm tra lại xem các FK còn lại của bảng commissions đã đúng chưa
+SELECT CONSTRAINT_NAME, TABLE_NAME, COLUMN_NAME, 
+       REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+FROM information_schema.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA = 'Ecommerce'
+  AND TABLE_NAME = 'commissions';

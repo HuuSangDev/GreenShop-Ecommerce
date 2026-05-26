@@ -8,7 +8,6 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -42,5 +41,60 @@ public class Commission {
     @Column(name = "net_amount", nullable = false, precision = 15, scale = 2)
     BigDecimal netAmount;           // Shop nhận = gross - commissionAmt
 
+    // Getters and Setters
+    public String getId() {
+        return id;
+    }
 
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public ShopOrder getShopOrder() {
+        return shopOrder;
+    }
+
+    public void setShopOrder(ShopOrder shopOrder) {
+        this.shopOrder = shopOrder;
+    }
+
+    public Shop getShop() {
+        return shop;
+    }
+
+    public void setShop(Shop shop) {
+        this.shop = shop;
+    }
+
+    public BigDecimal getGrossAmount() {
+        return grossAmount;
+    }
+
+    public void setGrossAmount(BigDecimal grossAmount) {
+        this.grossAmount = grossAmount;
+    }
+
+    public BigDecimal getCommissionRate() {
+        return commissionRate;
+    }
+
+    public void setCommissionRate(BigDecimal commissionRate) {
+        this.commissionRate = commissionRate;
+    }
+
+    public BigDecimal getCommissionAmt() {
+        return commissionAmt;
+    }
+
+    public void setCommissionAmt(BigDecimal commissionAmt) {
+        this.commissionAmt = commissionAmt;
+    }
+
+    public BigDecimal getNetAmount() {
+        return netAmount;
+    }
+
+    public void setNetAmount(BigDecimal netAmount) {
+        this.netAmount = netAmount;
+    }
 }

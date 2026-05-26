@@ -212,7 +212,16 @@ public class ShopService {
     public ShopWalletResponse getWallet(String userEmail) {
         Shop shop = getShopByOwnerEmail(userEmail);
         ShopWallet wallet = shopWalletRepository.findByShopId(shop.getId())
-                .orElseThrow(() -> new AppException(ErrorCode.SHOP_WALLET_NOT_FOUND));
+                .orElseGet(() -> {
+                    log.info("ShopWallet not found for shopId={}, creating a new one", shop.getId());
+                    ShopWallet newWallet = ShopWallet.builder()
+                            .shop(shop)
+                            .balance(BigDecimal.ZERO)
+                            .totalEarned(BigDecimal.ZERO)
+                            .totalWithdrawn(BigDecimal.ZERO)
+                            .build();
+                    return shopWalletRepository.save(newWallet);
+                });
         return toWalletResponse(wallet);
     }
 
@@ -252,7 +261,16 @@ public class ShopService {
     public WithdrawalResponse requestWithdrawal(String userEmail, WithdrawalRequest request) {
         Shop shop = getShopByOwnerEmail(userEmail);
         ShopWallet wallet = shopWalletRepository.findByShopId(shop.getId())
-                .orElseThrow(() -> new AppException(ErrorCode.SHOP_WALLET_NOT_FOUND));
+                .orElseGet(() -> {
+                    log.info("ShopWallet not found for shopId={}, creating a new one", shop.getId());
+                    ShopWallet newWallet = ShopWallet.builder()
+                            .shop(shop)
+                            .balance(BigDecimal.ZERO)
+                            .totalEarned(BigDecimal.ZERO)
+                            .totalWithdrawn(BigDecimal.ZERO)
+                            .build();
+                    return shopWalletRepository.save(newWallet);
+                });
 
         // Kiểm tra số dư
         if (wallet.getBalance().compareTo(request.getAmount()) < 0) {

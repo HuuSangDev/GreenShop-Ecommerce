@@ -50,6 +50,11 @@ public enum ErrorCode {
     SHOP_WITHDRAWAL_NOT_FOUND(608, "Withdrawal request not found"),
     SHOP_WITHDRAWAL_NOT_PENDING(609, "Withdrawal is not in PENDING status"),
 
+    //COMMISSION
+    COMMISSION_NOT_FOUND(701, "Commission not found"),
+    COMMISSION_ALREADY_CALCULATED(702, "Commission already calculated for this order"),
+    COMMISSION_ORDER_NOT_COMPLETED(703, "Cannot calculate commission for non-completed order"),
+
     VOUCHER_NOT_FOUND(301, "Không tìm thấy voucher"),
     VOUCHER_CODE_EXISTED(302, "Mã voucher đã tồn tại"),
     VOUCHER_EXPIRED(303, "Voucher đã hết hạn"),

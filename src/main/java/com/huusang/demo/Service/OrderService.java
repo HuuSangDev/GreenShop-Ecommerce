@@ -41,6 +41,7 @@ public class OrderService {
     PaymentRepository        paymentRepository;
     UserRepository           userRepository;
     SePayService             sePayService;
+    CommissionService        commissionService;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // STEP 0 — CHECKOUT PREVIEW
@@ -314,6 +315,49 @@ public class OrderService {
         });
 
         log.info("SEPAY payment SUCCESS: orderId={}, transactionRef='{}'", order.getId(), content);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SELLER: Cập nhật trạng thái ShopOrder
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Seller cập nhật trạng thái ShopOrder (PREPARING → READY_TO_SHIP → SHIPPED → DELIVERED → COMPLETED).
+     * Khi status = COMPLETED, tự động tính commission và cộng tiền vào ví shop.
+     *
+     * @param userEmail     Email của seller
+     * @param shopOrderId   ID của shop order
+     * @param newStatus     Trạng thái mới
+     */
+    @Transactional
+    public void updateShopOrderStatus(String userEmail, Long shopOrderId, OrderStatus newStatus) {
+        User seller = resolveUser(userEmail);
+
+        ShopOrder shopOrder = shopOrderRepository.findById(shopOrderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        // Validate ownership: seller phải là owner của shop
+        if (!shopOrder.getShop().getOwner().getId().equals(seller.getId())) {
+            log.warn("User {} tried to update shopOrder {} without permission", userEmail, shopOrderId);
+            throw new AppException(ErrorCode.ORDER_CART_ITEM_NOT_OWNED);
+        }
+
+        // Cập nhật status
+        shopOrder.setStatus(newStatus);
+        shopOrderRepository.save(shopOrder);
+        log.info("ShopOrder {} status updated to {} by seller {}", shopOrderId, newStatus, userEmail);
+
+        // Nếu status = COMPLETED → tính commission
+        if (newStatus == OrderStatus.COMPLETED) {
+            try {
+                commissionService.calculateCommission(shopOrderId);
+                log.info("Commission calculated for shopOrderId={}", shopOrderId);
+            } catch (Exception e) {
+                log.error("Failed to calculate commission for shopOrderId={}: {}", shopOrderId, e.getMessage());
+                // Không throw exception để không rollback việc update status
+                // Admin có thể tính lại commission sau
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
