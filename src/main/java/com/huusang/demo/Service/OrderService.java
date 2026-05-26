@@ -175,9 +175,9 @@ public class OrderService {
             log.info("COD checkout done: orderId={}, cartItemsDeleted={}", savedOrder.getId(), cartItems.size());
 
         } else {
-            // SEPAY: tạo Payment pending + generate QR URL
-            // Stock CHƯA trừ — chờ webhook callback
-            String transactionRef = "ORDER_" + savedOrder.getId();
+            // transactionRef = "ORDER" + id (KHÔNG có dấu _ để tránh ngân hàng lọc ký tự đặc biệt)
+            // QR content: user sẽ thấy "ORDER4" trong nội dung chuyển khoản
+            String transactionRef = "ORDER" + savedOrder.getId();
             paymentUrl = sePayService.generateQrUrl(totalAmount, transactionRef);
 
             paymentRepository.save(Payment.builder()
@@ -232,12 +232,11 @@ public class OrderService {
         String content = webhookRequest.getContent();
         log.info("SePay webhook received: content='{}', amount={}", content, webhookRequest.getTransferAmount());
 
-        // 1. Tìm Payment theo transactionRef (content = "ORDER_15")
-        Payment payment = paymentRepository.findByTransactionRef(content)
-                .orElseThrow(() -> {
-                    log.warn("SePay webhook: transactionRef not found: '{}'", content);
-                    return new AppException(ErrorCode.PAYMENT_TRANSACTION_REF_NOT_FOUND);
-                });
+        // 1. Tìm Payment theo transactionRef
+        // SePay (hoặc ngân hàng trung gian) đôi khi tự lọc ký tự đặc biệt trong nội dung:
+        //   "ORDER_4" → "ORDER4", hoặc thêm text thừa: "CHUYEN KHOAN ORDER4 THANH TOAN"
+        // Strategy: tách lấy token dạng ORDER\d+ từ content → tìm payment
+        Payment payment = findPaymentByContent(content);
 
         // 2. Idempotency check — tránh xử lý 2 lần nếu SePay gửi webhook duplicate
         if (payment.getStatus() == PaymentStatus.SUCCESS) {
@@ -504,4 +503,47 @@ public class OrderService {
                         Collectors.toList()
                 ));
     }
+
+    /**
+     * Tìm Payment từ nội dung chuyển khoản (content field của webhook).
+     * <p>
+     * Ngân hàng / SePay có thể biến đổi nội dung:
+     *   "ORDER4"            → exact match với transactionRef "ORDER4"
+     *   "ORDER_4"           → cũ, vẫn hỗ trợ để backward compat
+     *   "CHUYEN KHOAN ORDER4 THANH TOAN"  → tách token ORDER4 ra
+     * <p>
+     * Thuật toán:
+     *   1. Exact match trước
+     *   2. Dùng regex tìm token ORDER\d+ trong content → tìm theo token đó
+     */
+    private Payment findPaymentByContent(String content) {
+        if (content == null || content.isBlank()) {
+            log.warn("SePay webhook: empty content");
+            throw new AppException(ErrorCode.PAYMENT_TRANSACTION_REF_NOT_FOUND);
+        }
+
+        // Bước 1: Exact match (content = "ORDER4" hoặc "ORDER_4")
+        Optional<Payment> exact = paymentRepository.findByTransactionRef(content);
+        if (exact.isPresent()) {
+            return exact.get();
+        }
+
+        // Bước 2: Tách token ORDER\d+ từ nội dung tự do
+        // Ví dụ: "CHUYEN KHOAN ORDER4 THANH TOAN ORDER DAT HANG" → tìm "ORDER4"
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("ORDER(\\d+)", java.util.regex.Pattern.CASE_INSENSITIVE);
+        java.util.regex.Matcher matcher = pattern.matcher(content.replaceAll("[_\\-]", ""));
+
+        while (matcher.find()) {
+            String candidate = "ORDER" + matcher.group(1); // ví dụ: "ORDER4"
+            Optional<Payment> found = paymentRepository.findByTransactionRef(candidate);
+            if (found.isPresent()) {
+                log.info("SePay webhook: matched transactionRef='{}' from content='{}'", candidate, content);
+                return found.get();
+            }
+        }
+
+        log.warn("SePay webhook: no matching transactionRef in content='{}'", content);
+        throw new AppException(ErrorCode.PAYMENT_TRANSACTION_REF_NOT_FOUND);
+    }
 }
+

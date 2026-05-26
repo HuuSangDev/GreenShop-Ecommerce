@@ -50,22 +50,6 @@ public enum ErrorCode {
     SHOP_WITHDRAWAL_NOT_FOUND(608, "Withdrawal request not found"),
     SHOP_WITHDRAWAL_NOT_PENDING(609, "Withdrawal is not in PENDING status"),
 
-
-    //VOUCHER
-    VOUCHER_NOT_FOUND(601, "Không tìm thấy voucher"),
-    VOUCHER_CODE_EXISTED(602, "Mã voucher đã tồn tại"),
-    VOUCHER_EXPIRED(603, "Voucher đã hết hạn"),
-    VOUCHER_NOT_STARTED(604, "Voucher chưa đến thời gian sử dụng"),
-    VOUCHER_USAGE_LIMIT_REACHED(605, "Voucher đã hết lượt sử dụng"),
-    VOUCHER_MIN_ORDER_NOT_MET(606, "Giá trị đơn hàng chưa đạt mức tối thiểu để dùng voucher"),
-    VOUCHER_ALREADY_USED(607, "Bạn đã sử dụng voucher này rồi"),
-    VOUCHER_INACTIVE(608, "Voucher đã bị vô hiệu hóa"),
-    VOUCHER_ALREADY_ACTIVE(609, "Voucher đang hoạt động"),
-    VOUCHER_CANNOT_UPDATE(610, "Không thể sửa voucher đã được sử dụng"),
-    UNAUTHORIZED_VOUCHER(611, "Bạn không có quyền thao tác voucher này"),
-
-
-
     ;
 
     ErrorCode(int code, String message) {

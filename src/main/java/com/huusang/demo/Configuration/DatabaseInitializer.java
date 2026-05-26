@@ -2,15 +2,18 @@ package com.huusang.demo.Configuration;
 
 import com.huusang.demo.Entity.Permission;
 import com.huusang.demo.Entity.Role;
+import com.huusang.demo.Entity.User;
 import com.huusang.demo.Enum.RoleName;
 import com.huusang.demo.Repository.PermissionRepository;
 import com.huusang.demo.Repository.RoleRepository;
+import com.huusang.demo.Repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +30,7 @@ public class DatabaseInitializer implements ApplicationRunner {
 
     RoleRepository roleRepository;
     PermissionRepository permissionRepository;
+    UserRepository userRepository;
 
     @Override
     @Transactional // Đảm bảo nếu lỗi thì rollback toàn bộ, không bị rác DB
@@ -109,6 +113,31 @@ public class DatabaseInitializer implements ApplicationRunner {
             // Lưu cả 3 Role xuống Database
             roleRepository.saveAll(List.of(buyerRole, sellerRole, adminRole));
             log.info(">> Đã khởi tạo thành công 3 Role kèm theo Quyền hạn tương ứng!");
+        }
+
+        // ======================================================
+        // BƯỚC 3: TẠO TÀI KHOẢN ADMIN MẶC ĐỊNH (NẾU CHƯA CÓ)
+        // ======================================================
+        String adminEmail = "admin@gmail.com";
+        if (!userRepository.existsByEmail(adminEmail)) {
+            BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+
+            Role adminRole = roleRepository.findById(RoleName.ADMIN.name())
+                    .orElseThrow(() -> new RuntimeException("Role ADMIN chưa được khởi tạo!"));
+
+            User adminUser = User.builder()
+                    .username("admin")
+                    .email(adminEmail)
+                    .password(encoder.encode("admin"))
+                    .fullName("Administrator")
+                    .active(true)
+                    .roles(new HashSet<>(List.of(adminRole)))
+                    .build();
+
+            userRepository.save(adminUser);
+            log.info(">> Đã tạo tài khoản Admin mặc định: {} / admin", adminEmail);
+        } else {
+            log.info(">> Tài khoản Admin đã tồn tại, bỏ qua.");
         }
 
         log.info("--- HOÀN TẤT KHỞI TẠO ---");

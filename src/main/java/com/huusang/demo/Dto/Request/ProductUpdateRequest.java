@@ -1,7 +1,8 @@
 package com.huusang.demo.Dto.Request;
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,8 +10,16 @@ import lombok.NoArgsConstructor;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
-import java.util.List;
 
+/**
+ * DTO cập nhật sản phẩm — dùng với @ModelAttribute + multipart/form-data.
+ * Tất cả các field đều optional (null = giữ nguyên giá trị cũ).
+ *
+ * Postman: Body → form-data
+ *   productName   (Text, optional) → tên mới
+ *   price         (Text, optional) → giá mới
+ *   image         (File, optional) → ảnh mới — null = giữ nguyên ảnh cũ
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -32,6 +41,4 @@ public class ProductUpdateRequest {
 
     // File ảnh mới — null hoặc không gửi = giữ nguyên ảnh cũ
     private MultipartFile image;
-
-
 }

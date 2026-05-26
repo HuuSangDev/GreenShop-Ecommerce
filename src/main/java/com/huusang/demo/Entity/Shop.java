@@ -1,5 +1,6 @@
 package com.huusang.demo.Entity;
 
+import com.huusang.demo.Enum.ShopStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -27,9 +28,20 @@ public class Shop {
     @Column(name = "shop_name", nullable = false)
     String shopName;
 
+    @Column(columnDefinition = "TEXT")
     String description;
 
+    @Column(name = "banner_url")
+    String bannerUrl;
+
+    @Column(name = "logo_url")
+    String logoUrl;
+
     Double rating = 0.0;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    ShopStatus status = ShopStatus.ACTIVE;
 
     @Column(name = "created_at")
     LocalDateTime createdAt = LocalDateTime.now();
