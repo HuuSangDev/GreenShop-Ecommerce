@@ -67,6 +67,11 @@ public enum ErrorCode {
     ADDRESS_NOT_OWNED(702, "Địa chỉ không thuộc về bạn"),
     ADDRESS_DEFAULT_CANNOT_DELETE(703, "Không thể xóa địa chỉ mặc định. Hãy đặt địa chỉ khác làm mặc định trước"),
     ADDRESS_NO_DEFAULT(704, "Bạn chưa có địa chỉ mặc định. Vui lòng thêm địa chỉ giao hàng"),
+
+    // CHAT / MESSAGING
+    CONVERSATION_NOT_FOUND(801, "Không tìm thấy cuộc hội thoại"),
+    CONVERSATION_ACCESS_DENIED(802, "Bạn không có quyền truy cập cuộc hội thoại này"),
+    CHAT_PARTICIPANT_INVALID(803, "Đối tác trò chuyện không hợp lệ"),
     ;
 
     ErrorCode(int code, String message) {
