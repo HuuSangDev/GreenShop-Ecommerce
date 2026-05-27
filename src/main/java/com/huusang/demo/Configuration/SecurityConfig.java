@@ -54,6 +54,8 @@ public class SecurityConfig {
                         .requestMatchers("GET", "/api/v1/shops/{id}").permitAll()
                         // Ảnh tĩnh local — phục vụ qua /images/**, không cần JWT
                         .requestMatchers("/images/**").permitAll()
+                        // Shipping test endpoint — không cần JWT để dễ test
+                        .requestMatchers("/api/v1/shipping/test-checkout").permitAll()
                         .anyRequest().authenticated());
         // xác thực( authentication)
         http.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder())

@@ -61,6 +61,12 @@ public enum ErrorCode {
     VOUCHER_ALREADY_ACTIVE(309, "Voucher đang hoạt động"),
     VOUCHER_CANNOT_UPDATE(310, "Không thể sửa voucher đã được sử dụng"),
     UNAUTHORIZED_VOUCHER(311, "Bạn không có quyền thao tác voucher này"),
+
+    // ADDRESS
+    ADDRESS_NOT_FOUND(701, "Không tìm thấy địa chỉ"),
+    ADDRESS_NOT_OWNED(702, "Địa chỉ không thuộc về bạn"),
+    ADDRESS_DEFAULT_CANNOT_DELETE(703, "Không thể xóa địa chỉ mặc định. Hãy đặt địa chỉ khác làm mặc định trước"),
+    ADDRESS_NO_DEFAULT(704, "Bạn chưa có địa chỉ mặc định. Vui lòng thêm địa chỉ giao hàng"),
     ;
 
     ErrorCode(int code, String message) {

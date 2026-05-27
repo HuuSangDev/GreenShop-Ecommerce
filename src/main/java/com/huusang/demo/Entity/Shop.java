@@ -46,6 +46,20 @@ public class Shop {
     @Column(name = "created_at")
     LocalDateTime createdAt = LocalDateTime.now();
 
+    // ─── Thông tin địa chỉ kho hàng & GHN ────────────────────────────────────
+
+    /** ShopId của shop này trên hệ thống GHN — dùng làm Header "ShopId" khi gọi GHN API */
+    @Column(name = "ghn_shop_id")
+    Integer ghnShopId;
+
+    /** ID quận/huyện kho hàng (theo mã GHN) — ví dụ: 1442 = Quận 1, TP.HCM */
+    @Column(name = "district_id")
+    Integer districtId;
+
+    /** Mã phường/xã kho hàng (theo mã GHN) — ví dụ: "21211" = P. Bến Nghé */
+    @Column(name = "ward_code", length = 20)
+    String wardCode;
+
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL)
     List<ShopOrder> orders;
 }

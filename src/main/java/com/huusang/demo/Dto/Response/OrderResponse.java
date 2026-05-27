@@ -20,9 +20,10 @@ public class OrderResponse {
     OrderStatus status;
     PaymentMethod paymentMethod;
 
-    BigDecimal totalAmount;      // Tổng tiền chưa giảm
-    BigDecimal discountAmount;
-    BigDecimal finalAmount;      // Số tiền thực trả
+    BigDecimal totalAmount;      // Tổng tiền hàng (chưa cộng ship, chưa giảm)
+    BigDecimal shippingFee;      // Phí vận chuyển (tổng tất cả shop)
+    BigDecimal discountAmount;   // Tiền giảm giá (voucher)
+    BigDecimal finalAmount;      // = totalAmount + shippingFee - discountAmount
 
     LocalDateTime createdAt;
     int totalShops;              // Số lượng shop tham gia đơn hàng
