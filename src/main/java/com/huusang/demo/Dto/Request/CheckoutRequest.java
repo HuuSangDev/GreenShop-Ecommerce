@@ -20,4 +20,17 @@ public class CheckoutRequest {
 
     @NotNull(message = "Phương thức thanh toán không được trống")
     PaymentMethod paymentMethod;
+
+    // ─── Địa chỉ giao hàng (bắt buộc để tính phí ship qua GHN) ─────────────
+    /** ID quận/huyện nhà khách hàng theo mã GHN — ví dụ: 1820 */
+    @NotNull(message = "Quận/huyện giao hàng không được trống")
+    Integer toDistrictId;
+
+    /** Mã phường/xã nhà khách hàng theo mã GHN — ví dụ: "030712" */
+    @NotNull(message = "Phường/xã giao hàng không được trống")
+    String toWardCode;
+
+    // ─── Voucher (optional) ───────────────────────────────────────────────────
+    /** Mã voucher muốn áp dụng — null = không dùng voucher */
+    String voucherCode;
 }

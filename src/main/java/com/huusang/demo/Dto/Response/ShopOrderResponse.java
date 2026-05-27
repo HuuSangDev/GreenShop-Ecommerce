@@ -18,6 +18,7 @@ public class ShopOrderResponse {
     Long shopId;
     String shopName;
     OrderStatus status;
-    BigDecimal shopTotalAmount;
+    BigDecimal shopTotalAmount;  // Tiền hàng của shop này
+    BigDecimal shippingFee;      // Phí ship của shop này (từ GHN)
     List<OrderItemResponse> items;
 }

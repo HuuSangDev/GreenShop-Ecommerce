@@ -33,6 +33,13 @@ public class ProductVariant {
 
     String sku; // Mã định danh kho (Stock Keeping Unit)
 
+    /**
+     * Khối lượng (gram) — dùng để tính phí ship GHN.
+     * Nullable: nếu null → OrderService tự gán DEFAULT_WEIGHT_PER_ITEM_GRAM (200g).
+     */
+    @Column(name = "weight")
+    Integer weight;
+
     // Optimistic locking — tránh race condition khi nhiều user cùng thêm vào giỏ
     @Version
     Long version;

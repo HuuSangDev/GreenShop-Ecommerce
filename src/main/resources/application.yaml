@@ -38,6 +38,10 @@ jwt:
 file:
   upload-dir: ${user.dir}/uploads
 
+# ─── Cấu hình GHN (Giao Hàng Nhanh) ──────────────────────────────────────────
+
+
+
 
 
 
