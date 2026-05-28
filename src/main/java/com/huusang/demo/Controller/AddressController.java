@@ -1,8 +1,8 @@
 package com.huusang.demo.Controller;
 
+import com.huusang.demo.Dto.ApiResponse;
 import com.huusang.demo.Dto.Request.AddressRequest;
 import com.huusang.demo.Dto.Response.AddressResponse;
-import com.huusang.demo.Dto.Response.ApiResponse;
 import com.huusang.demo.Service.AddressService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
