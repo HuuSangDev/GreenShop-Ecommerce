@@ -280,20 +280,36 @@ public class ProductService {
     }
 
     /**
-     * Lọc sản phẩm theo nhiều tiêu chí
+     * Lọc sản phẩm theo nhiều tiêu chí.
+     *
+     * FIX: Nếu có categoryId, lấy thêm tất cả ID của danh mục con
+     * → dùng IN (:categoryIds) thay vì = :categoryId
+     * → Lọc theo danh mục cha sẽ ra cả sản phẩm của danh mục con.
      */
     public Page<ProductResponse> filterProducts(ProductFilterRequest request) {
-        Sort sort = request.getSortDirection().equalsIgnoreCase("ASC") 
+        Sort sort = request.getSortDirection().equalsIgnoreCase("ASC")
                 ? Sort.by(request.getSortBy()).ascending()
                 : Sort.by(request.getSortBy()).descending();
 
         Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), sort);
 
-        Page<Product> products = productRepository.filterProducts(
-                request.getCategoryId(),
+        // Resolve categoryIds: bao gồm danh mục cha + tất cả danh mục con cấp 1
+        List<Long> categoryIds = null;
+        if (request.getCategoryId() != null) {
+            categoryIds = categoryRepository.findCategoryAndChildIds(request.getCategoryId());
+            // Đảm bảo luôn có ít nhất ID của chính danh mục được truyền vào
+            // (phòng trường hợp danh mục bị inactive nhưng request vẫn truyền ID)
+            if (categoryIds.isEmpty()) {
+                categoryIds = List.of(request.getCategoryId());
+            }
+        }
+
+        Page<Product> products = productRepository.filterProductsByCategories(
+                categoryIds,
                 request.getShopId(),
                 request.getMinPrice(),
                 request.getMaxPrice(),
+                request.getKeyword(),
                 pageable
         );
 

@@ -49,6 +49,31 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             Pageable pageable
     );
 
+    /**
+     * Lọc sản phẩm theo danh sách categoryIds (cha + các con).
+     * Dùng mệnh đề IN để bao gồm tất cả sản phẩm thuộc mọi danh mục con.
+     * categoryIds = null hoặc rỗng → không lọc theo danh mục.
+     */
+    @Query("""
+           SELECT p FROM Product p
+           WHERE p.available = true
+           AND (:#{#categoryIds == null || #categoryIds.isEmpty()} = true OR p.category.id IN :categoryIds)
+           AND (:shopId IS NULL OR p.shop.id = :shopId)
+           AND (:minPrice IS NULL OR p.price >= :minPrice)
+           AND (:maxPrice IS NULL OR p.price <= :maxPrice)
+           AND (:keyword IS NULL OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                                 OR LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%')))
+           """)
+    Page<Product> filterProductsByCategories(
+            @Param("categoryIds") List<Long> categoryIds,
+            @Param("shopId")      Long shopId,
+            @Param("minPrice")    BigDecimal minPrice,
+            @Param("maxPrice")    BigDecimal maxPrice,
+            @Param("keyword")     String keyword,
+            Pageable pageable
+    );
+
+
     Page<Product> findByAvailableTrueOrderByCreatedAtDesc(Pageable pageable);
 
     @Query("""

@@ -53,4 +53,19 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     // Kiểm tra slug trùng
     boolean existsBySlugAndIdNot(String slug, Long id);
     boolean existsBySlug(String slug);
+
+    /**
+     * Lấy ID của chính danh mục đó VÀ tất cả danh mục con cấp 1.
+     * Dùng cho bộ lọc sản phẩm: khi filter theo "Điện tử" (id=1),
+     * sẽ trả về [1, 9, 10, 11, 12, 13] → lọc sản phẩm bằng IN.
+     *
+     * Hỗ trợ 2 cấp hiện tại (parent → children).
+     * Nếu cần đệ quy nhiều cấp hơn → cần dùng CTE hoặc xử lý in-memory.
+     */
+    @Query("""
+            SELECT c.id FROM Category c
+            WHERE c.isActive = true
+            AND (c.id = :categoryId OR c.parent.id = :categoryId)
+            """)
+    List<Long> findCategoryAndChildIds(@Param("categoryId") Long categoryId);
 }
