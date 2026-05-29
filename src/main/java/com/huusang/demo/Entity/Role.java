@@ -17,7 +17,7 @@ public class Role {
     @Id
     String name; // Ví dụ: ADMIN, SELLER, BUYER
     String description;
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "role_permissions",
             joinColumns = @JoinColumn(name = "role_name"),

@@ -23,7 +23,7 @@ import java.util.List;
  * Tất cả endpoint đều yêu cầu xác thực (isAuthenticated).
  */
 @RestController
-@RequestMapping("/api/v1/addresses")
+@RequestMapping("/addresses")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AddressController {

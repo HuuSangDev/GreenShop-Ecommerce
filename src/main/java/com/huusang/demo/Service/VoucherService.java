@@ -72,6 +72,16 @@ public class VoucherService {
                 .build();
     }
 
+    // ==================== ADMIN ====================
+
+    /**
+     * Lấy tất cả voucher (toàn sàn + của các shop) — chỉ Admin
+     */
+    public List<VoucherResponse> getAllVouchers() {
+        return voucherRepository.findAll()
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
     // ==================== CRUD ====================
 
     /**

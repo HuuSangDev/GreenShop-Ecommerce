@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Test endpoint không cần JWT (được permit trong SecurityConfig).
  */
 @RestController
-@RequestMapping("/api/v1/shipping")
+@RequestMapping("/shipping")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ShippingController {

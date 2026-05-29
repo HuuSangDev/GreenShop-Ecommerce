@@ -1,6 +1,7 @@
 package com.huusang.demo.Configuration;
 
 import com.huusang.demo.Repository.InvalidatedTokenRepository;
+import com.huusang.demo.Repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -38,6 +39,7 @@ import java.util.List;
 public class SecurityConfig {
 
     final InvalidatedTokenRepository invalidatedTokenRepository;
+    final UserRepository userRepository;
 
     @NonFinal
     @Value("${jwt.signerKey}")
@@ -50,16 +52,16 @@ public class SecurityConfig {
                 .authorizeHttpRequests(request -> request
                         .requestMatchers("/users/register", "auth/**").permitAll()
                         // Category tree public — ai cũng xem được
-                        .requestMatchers("/api/v1/categories/tree").permitAll()
-                        .requestMatchers("/api/v1/categories/{id}").permitAll()
+                        .requestMatchers("/categories/tree").permitAll()
+                        .requestMatchers("/categories/{id}").permitAll()
                         // SePay webhook — gọi từ server SePay, không có JWT user
-                        .requestMatchers("/api/v1/payments/sepay/webhook").permitAll()
+                        .requestMatchers("/payments/sepay/webhook").permitAll()
                         // Thông tin public của shop — khách xem không cần đăng nhập
-                        .requestMatchers("GET", "/api/v1/shops/{id}").permitAll()
+                        .requestMatchers("GET", "/shops/{id}").permitAll()
                         // Ảnh tĩnh local — phục vụ qua /images/**, không cần JWT
                         .requestMatchers("/images/**").permitAll()
                         // Shipping test endpoint — không cần JWT để dễ test
-                        .requestMatchers("/api/v1/shipping/test-checkout").permitAll()
+                        .requestMatchers("/shipping/test-checkout").permitAll()
                         .anyRequest().authenticated());
         // xác thực( authentication)
         http.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder())
@@ -92,8 +94,18 @@ public class SecurityConfig {
             String jwtId = jwt.getId();
 
             if (invalidatedTokenRepository.existsById(jwtId)) {
-
                 throw new BadJwtException("Thẻ này đã bị Đăng xuất / Vô hiệu hóa!");
+            }
+
+            // Kiểm tra user có bị Admin ban không
+            // Nếu user.active = false → từ chối token ngay lập tức (không cần chờ hết hạn)
+            String userEmail = jwt.getSubject();
+            if (userEmail != null) {
+                userRepository.findByEmail(userEmail).ifPresent(user -> {
+                    if (!user.isActive()) {
+                        throw new BadJwtException("Tài khoản đã bị khóa bởi Admin!");
+                    }
+                });
             }
 
             // Mọi thứ hoàn hảo, cho phép thẻ đi qua cửa bảo vệ!
@@ -117,10 +129,13 @@ public class SecurityConfig {
     public CorsFilter corsFilter()
     {
         CorsConfiguration corsConfiguration= new CorsConfiguration();
-        corsConfiguration.setAllowedOrigins(List.of("http://localhost:3000"));
-        corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // Cho phép tất cả localhost port trong môi trường dev
+        corsConfiguration.setAllowedOriginPatterns(List.of("http://localhost:*"));
+        corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         corsConfiguration.setAllowedHeaders(List.of("*"));
+        corsConfiguration.setExposedHeaders(List.of("Authorization"));
         corsConfiguration.setAllowCredentials(true);
+        corsConfiguration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource urlBasedCorsConfigurationSource= new UrlBasedCorsConfigurationSource();
         urlBasedCorsConfigurationSource.registerCorsConfiguration("/**",corsConfiguration);
 

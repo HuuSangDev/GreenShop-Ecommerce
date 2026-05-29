@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/shops")
+@RequestMapping("/shops")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
@@ -32,7 +32,7 @@ public class ShopController {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * POST /api/v1/shops/applications
+     * POST /shops/applications
      * Khách hàng nộp đơn đăng ký mở gian hàng (tên, mô tả, thông tin thuế).
      * Quyền: CUSTOMER (bất kỳ user đã đăng nhập)
      */
@@ -52,7 +52,7 @@ public class ShopController {
     }
 
     /**
-     * POST /api/v1/shops/applications/{id}/approve
+     * POST /shops/applications/{id}/approve
      * Admin duyệt đơn → tạo Shop + ShopWallet, gán role SELLER.
      * Quyền: ADMIN
      */
@@ -67,7 +67,7 @@ public class ShopController {
     }
 
     /**
-     * POST /api/v1/shops/applications/{id}/reject
+     * POST /shops/applications/{id}/reject
      * Admin từ chối đơn kèm lý do.
      * Quyền: ADMIN
      */
@@ -89,7 +89,7 @@ public class ShopController {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * GET /api/v1/shops/me
+     * GET /shops/me
      * Chủ shop lấy thông tin gian hàng của mình.
      * Quyền: SELLER
      */
@@ -104,7 +104,7 @@ public class ShopController {
     }
 
     /**
-     * PUT /api/v1/shops/me
+     * PUT /shops/me
      * Cập nhật tên, mô tả, banner, logo gian hàng.
      * Quyền: SELLER
      */
@@ -122,7 +122,7 @@ public class ShopController {
     }
 
     /**
-     * GET /api/v1/shops/{id}
+     * GET /shops/{id}
      * Lấy thông tin public của shop (khách xem) — không cần đăng nhập.
      * Quyền: PUBLIC
      */
@@ -136,7 +136,7 @@ public class ShopController {
     }
 
     /**
-     * GET /api/v1/shops?status=ACTIVE
+     * GET /shops?status=ACTIVE
      * Admin xem tất cả shops, filter theo status (tuỳ chọn).
      * Quyền: ADMIN
      */
@@ -157,7 +157,7 @@ public class ShopController {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * GET /api/v1/shops/me/wallet
+     * GET /shops/me/wallet
      * Xem số dư ví, tổng doanh thu, tổng đã rút.
      * Quyền: SELLER
      */
@@ -172,7 +172,7 @@ public class ShopController {
     }
 
     /**
-     * GET /api/v1/shops/me/revenue?period=DAILY|WEEKLY|MONTHLY
+     * GET /shops/me/revenue?period=DAILY|WEEKLY|MONTHLY
      * Thống kê doanh thu theo ngày/tuần/tháng, top sản phẩm bán chạy.
      * Quyền: SELLER
      */
@@ -190,7 +190,7 @@ public class ShopController {
     }
 
     /**
-     * POST /api/v1/shops/me/withdrawals
+     * POST /shops/me/withdrawals
      * Tạo yêu cầu rút tiền, kiểm tra balance đủ không.
      * Quyền: SELLER
      */
@@ -210,7 +210,7 @@ public class ShopController {
     }
 
     /**
-     * GET /api/v1/shops/me/withdrawals
+     * GET /shops/me/withdrawals
      * Lịch sử các lần rút tiền và trạng thái.
      * Quyền: SELLER
      */
@@ -227,7 +227,7 @@ public class ShopController {
     }
 
     /**
-     * PUT /api/v1/shops/withdrawals/{id}/process
+     * PUT /shops/withdrawals/{id}/process
      * Admin duyệt hoặc từ chối yêu cầu rút tiền.
      * Quyền: ADMIN
      */

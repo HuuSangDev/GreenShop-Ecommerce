@@ -5,18 +5,21 @@ import com.huusang.demo.Dto.Request.AuthRequest;
 import com.huusang.demo.Dto.Request.LogoutRequest;
 import com.huusang.demo.Dto.Request.RefreshRequest;
 import com.huusang.demo.Dto.Response.AuthResponse;
+import com.huusang.demo.Dto.Response.UserResponse;
 import com.huusang.demo.Service.AuthService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RequiredArgsConstructor
 @RequestMapping("/auth")
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001"})
 public class AuthController {
 
     AuthService authService;
@@ -35,6 +38,15 @@ public class AuthController {
         return ApiResponse.<AuthResponse>builder()
                 .result(authService.refreshToken(request))
                 .message("Đã cấp lại Access Token mới thành công!")
+                .build();
+    }
+
+    @GetMapping("/me")
+    public ApiResponse<UserResponse> getMe(@AuthenticationPrincipal Jwt jwt) {
+        String email = jwt.getSubject();
+        return ApiResponse.<UserResponse>builder()
+                .message("Thông tin người dùng hiện tại")
+                .result(authService.getMe(email))
                 .build();
     }
 

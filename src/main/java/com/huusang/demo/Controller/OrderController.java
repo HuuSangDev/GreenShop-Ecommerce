@@ -28,14 +28,14 @@ public class OrderController {
 
     // ─── CHECKOUT PREVIEW ────────────────────────────────────────────────────────
     /**
-     * POST /api/v1/checkouts/preview
+     * POST /checkouts/preview
      * Tính toán và hiển thị thông tin đơn hàng TRƯỚC KHI user xác nhận.
      * KHÔNG tạo order, KHÔNG trừ stock, KHÔNG tạo payment.
      *
      * Request: { "cartItemIds": ["id1", "id2"] }
      * Response: subtotal, shippingFee, finalAmount, items, paymentMethods
      */
-    @PostMapping("/api/v1/checkouts/preview")
+    @PostMapping("/checkouts/preview")
     public ApiResponse<CheckoutPreviewResponse> previewCheckout(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CheckoutPreviewRequest request) {
@@ -51,7 +51,7 @@ public class OrderController {
 
     // ─── CHECKOUT (COD / SEPAY) ───────────────────────────────────────────────────
     /**
-     * POST /api/v1/orders
+     * POST /orders
      * Đặt hàng Multi-Vendor.
      * <p>
      * COD  → tạo order, trừ stock ngay, xóa giỏ → return OrderResponse
@@ -59,7 +59,7 @@ public class OrderController {
      *
      * Request: { "cartItemIds": [...], "paymentMethod": "COD" | "SEPAY" }
      */
-    @PostMapping("/api/v1/orders")
+    @PostMapping("/orders")
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<OrderResponse> checkout(
             @AuthenticationPrincipal Jwt jwt,
@@ -81,7 +81,7 @@ public class OrderController {
 
     // ─── SEPAY WEBHOOK ───────────────────────────────────────────────────────────
     /**
-     * POST /api/v1/payments/sepay/webhook
+     * POST /payments/sepay/webhook
      * Endpoint PUBLIC — SePay server gọi khi giao dịch thành công.
      * KHÔNG cần JWT (SePay không có JWT của user).
      * <p>
@@ -90,7 +90,7 @@ public class OrderController {
      * SePay expects HTTP 200 OK. Nếu 4xx/5xx, SePay sẽ retry.
      * Ta dùng idempotency để an toàn khi retry.
      */
-    @PostMapping("/api/v1/payments/sepay/webhook")
+    @PostMapping("/payments/sepay/webhook")
     public ResponseEntity<Void> sePayWebhook(@RequestBody SePayWebhookRequest request) {
         log.info("SePay webhook hit: content='{}', amount={}", request.getContent(), request.getTransferAmount());
         orderService.handleSePayCallback(request);
