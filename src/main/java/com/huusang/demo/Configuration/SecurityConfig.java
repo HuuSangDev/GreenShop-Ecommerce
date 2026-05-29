@@ -52,6 +52,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/payments/sepay/webhook").permitAll()
                         // Thông tin public của shop — khách xem không cần đăng nhập
                         .requestMatchers("GET", "/api/v1/shops/{id}").permitAll()
+                        // Review list + summary public — ai cũng xem được
+                        .requestMatchers("/api/v1/reviews/products/**").permitAll()
                         // Ảnh tĩnh local — phục vụ qua /images/**, không cần JWT
                         .requestMatchers("/images/**").permitAll()
                         .anyRequest().authenticated());

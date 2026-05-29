@@ -46,6 +46,15 @@ public class Product {
 
     boolean available = true;
 
+    // Rating summary — cập nhật mỗi khi có review mới/sửa/xóa
+    @Column(name = "average_rating", precision = 3, scale = 2)
+    @Builder.Default
+    BigDecimal averageRating = BigDecimal.ZERO;
+
+    @Column(name = "total_reviews")
+    @Builder.Default
+    Integer totalReviews = 0;
+
     LocalDateTime createdAt = LocalDateTime.now();
 
 }

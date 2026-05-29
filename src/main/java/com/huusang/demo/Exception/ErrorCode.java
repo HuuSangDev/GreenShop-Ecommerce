@@ -61,6 +61,18 @@ public enum ErrorCode {
     VOUCHER_ALREADY_ACTIVE(309, "Voucher đang hoạt động"),
     VOUCHER_CANNOT_UPDATE(310, "Không thể sửa voucher đã được sử dụng"),
     UNAUTHORIZED_VOUCHER(311, "Bạn không có quyền thao tác voucher này"),
+
+    //REVIEW
+    REVIEW_NOT_FOUND(701, "Review not found"),
+    REVIEW_ORDER_ITEM_NOT_OWNED(702, "Order item does not belong to the current user"),
+    REVIEW_ORDER_NOT_COMPLETED(703, "Can only review after order is completed"),
+    REVIEW_ALREADY_EXISTS(704, "This order item has already been reviewed"),
+    REVIEW_EDIT_EXPIRED(705, "Review can only be edited within 7 days of creation"),
+    REVIEW_NOT_OWNER(706, "You are not the owner of this review"),
+    REVIEW_ALREADY_DELETED(707, "Review has already been deleted"),
+    REVIEW_REPLY_ALREADY_EXISTS(708, "This review already has a seller reply"),
+    REVIEW_REPLY_NOT_SHOP_OWNER(709, "Only the shop owner of this product can reply"),
+    REVIEW_ORDER_ITEM_NOT_FOUND(710, "Order item not found"),
     ;
 
     ErrorCode(int code, String message) {
