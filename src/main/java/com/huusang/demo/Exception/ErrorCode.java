@@ -62,6 +62,7 @@ public enum ErrorCode {
     VOUCHER_CANNOT_UPDATE(310, "Không thể sửa voucher đã được sử dụng"),
     UNAUTHORIZED_VOUCHER(311, "Bạn không có quyền thao tác voucher này"),
 
+<<<<<<< HEAD
     //REVIEW
     REVIEW_NOT_FOUND(701, "Review not found"),
     REVIEW_ORDER_ITEM_NOT_OWNED(702, "Order item does not belong to the current user"),
@@ -73,6 +74,13 @@ public enum ErrorCode {
     REVIEW_REPLY_ALREADY_EXISTS(708, "This review already has a seller reply"),
     REVIEW_REPLY_NOT_SHOP_OWNER(709, "Only the shop owner of this product can reply"),
     REVIEW_ORDER_ITEM_NOT_FOUND(710, "Order item not found"),
+=======
+    // ADDRESS
+    ADDRESS_NOT_FOUND(701, "Không tìm thấy địa chỉ"),
+    ADDRESS_NOT_OWNED(702, "Địa chỉ không thuộc về bạn"),
+    ADDRESS_DEFAULT_CANNOT_DELETE(703, "Không thể xóa địa chỉ mặc định. Hãy đặt địa chỉ khác làm mặc định trước"),
+    ADDRESS_NO_DEFAULT(704, "Bạn chưa có địa chỉ mặc định. Vui lòng thêm địa chỉ giao hàng"),
+>>>>>>> 667cf7c08478108a8347284637f829fb3ddb1edd
     ;
 
     ErrorCode(int code, String message) {

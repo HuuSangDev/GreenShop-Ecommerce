@@ -44,6 +44,7 @@ public class Review {
 
     @Column(columnDefinition = "TEXT")
     String comment;
+<<<<<<< HEAD
 
     // Danh sách URL ảnh review (lưu dạng JSON string hoặc separate table)
     @ElementCollection
@@ -93,5 +94,14 @@ public class Review {
     @PreUpdate
     void onUpdate() {
         updatedAt = LocalDateTime.now();
+=======
+    LocalDateTime createdAt = LocalDateTime.now();
+
+    @PrePersist
+    protected void onCreate() {
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+>>>>>>> 667cf7c08478108a8347284637f829fb3ddb1edd
     }
 }

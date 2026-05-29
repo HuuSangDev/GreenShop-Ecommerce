@@ -29,16 +29,27 @@ public class Address {
     String phone;
 
     @Column(nullable = false, length = 255)
-    String street;      // Số nhà / tên đường / thôn xóm
+    String street;      // Số nhà / ngõ hẻm chi tiết
+
+    // === LƯU TÊN ĐỂ HIỂN THỊ CHO ĐẸP (Frontend dùng) ===
+    @Column(nullable = false, length = 100)
+    String ward;        // VD: Phường Vĩnh Phúc
 
     @Column(nullable = false, length = 100)
-    String ward;        // Phường / Xã / Thị trấn
+    String district;    // VD: Quận Ba Đình
 
     @Column(nullable = false, length = 100)
-    String district;    // Quận / Huyện / Thị xã
+    String province;    // VD: Thành phố Hà Nội
 
-    @Column(nullable = false, length = 100)
-    String province;    // Tỉnh / Thành phố
+    // === LƯU MÃ ĐỊNH DANH ĐỂ GỌI API GHN TÍNH SHIP (Backend dùng) ===
+    @Column(name = "ward_code", nullable = false, length = 20)
+    String wardCode;    // VD: "1A0807"
+
+    @Column(name = "district_id", nullable = false)
+    Integer districtId; // VD: 1482
+
+    @Column(name = "province_id", nullable = false)
+    Integer provinceId; // VD: 201
 
     @Column(name = "is_default", nullable = false)
     Boolean isDefault = false;
