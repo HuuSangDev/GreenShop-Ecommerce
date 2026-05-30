@@ -267,6 +267,35 @@ public class OrderService {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // GET ORDER BY ID
+    // GET /api/v1/orders/{orderId}
+    // Dùng cho frontend polling trạng thái sau khi đặt hàng SEPAY.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Lấy trạng thái đơn hàng theo ID.
+     * Dùng cho frontend polling: PENDING_PAYMENT → PAID → navigate sang success.
+     * Chỉ trả orderId + status — thông tin đơn hàng đã có từ lúc checkout.
+     */
+    @Transactional(readOnly = true)
+    public OrderResponse getOrderById(String userEmail, Long orderId) {
+        User buyer = resolveUser(userEmail);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        // Chỉ cho xem đơn của chính mình
+        if (!order.getBuyer().getId().equals(buyer.getId())) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        return OrderResponse.builder()
+                .orderId(order.getId())
+                .status(order.getStatus())
+                .build();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // STEP 2 — SEPAY WEBHOOK CALLBACK
     // POST /api/v1/payments/sepay/webhook  (public, không cần JWT)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -406,7 +435,7 @@ public class OrderService {
                         toDistrictId,
                         toWardCode,
                         totalWeightGram,
-                        30, 40, 20,   // kích thước mặc định (cm)
+                        10, 10, 10,   // kích thước mặc định (cm)
                         null          // hàng nhẹ — service_type_id = 2
                 );
                 result.put(shop, BigDecimal.valueOf(fee));
