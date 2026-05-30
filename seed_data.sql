@@ -9,17 +9,44 @@ SET FOREIGN_KEY_CHECKS=0;
 -- ============================================================
 -- 1. CATEGORIES
 -- ============================================================
-INSERT INTO categories (name, slug, description, parent_id, level, sort_order, is_active, created_at, updated_at) VALUES
-('Điện thoại',      'dien-thoai',       'Điện thoại di động',         NULL, 0, 1, 1, NOW(), NOW()),
-('Laptop',          'laptop',           'Máy tính xách tay',          NULL, 0, 2, 1, NOW(), NOW()),
-('Thời trang',      'thoi-trang',       'Quần áo, phụ kiện',          NULL, 0, 3, 1, NOW(), NOW()),
-('Đồ gia dụng',     'do-gia-dung',      'Thiết bị gia đình',          NULL, 0, 4, 1, NOW(), NOW()),
-('Sách',            'sach',             'Sách các thể loại',          NULL, 0, 5, 1, NOW(), NOW()),
-('iPhone',          'iphone',           'Điện thoại Apple iPhone',    1,    1, 1, 1, NOW(), NOW()),
-('Android',         'android',          'Điện thoại Android',         1,    1, 2, 1, NOW(), NOW()),
-('Gaming Laptop',   'gaming-laptop',    'Laptop chơi game',           2,    1, 1, 1, NOW(), NOW()),
-('Văn phòng',       'laptop-van-phong', 'Laptop văn phòng',           2,    1, 2, 1, NOW(), NOW()),
-('Áo nam',          'ao-nam',           'Áo các loại cho nam',        3,    1, 1, 1, NOW(), NOW());
+INSERT INTO categories (name, slug, description, image_url, parent_id, level, sort_order, is_active, created_at, updated_at) VALUES
+('Điện thoại',      'dien-thoai',       'Điện thoại di động',         'https://via.placeholder.com/300x300?text=Dien+Thoai', NULL, 0, 1, 1, NOW(), NOW()),
+('Laptop',          'laptop',           'Máy tính xách tay',          'https://via.placeholder.com/300x300?text=Laptop', NULL, 0, 2, 1, NOW(), NOW()),
+('Thời trang',      'thoi-trang',       'Quần áo, phụ kiện',          'https://via.placeholder.com/300x300?text=Thoi+Trang', NULL, 0, 3, 1, NOW(), NOW()),
+('Đồ gia dụng',     'do-gia-dung',      'Thiết bị gia đình',          'https://via.placeholder.com/300x300?text=Do+Gia+Dung', NULL, 0, 4, 1, NOW(), NOW()),
+('Sách',            'sach',             'Sách các thể loại',          'https://via.placeholder.com/300x300?text=Sach', NULL, 0, 5, 1, NOW(), NOW()),
+('iPhone',          'iphone',           'Điện thoại Apple iPhone',    'https://via.placeholder.com/300x300?text=iPhone', 1,    1, 1, 1, NOW(), NOW()),
+('Android',         'android',          'Điện thoại Android',         'https://via.placeholder.com/300x300?text=Android', 1,    1, 2, 1, NOW(), NOW()),
+('Gaming Laptop',   'gaming-laptop',    'Laptop chơi game',           'https://via.placeholder.com/300x300?text=Gaming+Laptop', 2,    1, 1, 1, NOW(), NOW()),
+('Văn phòng',       'laptop-van-phong', 'Laptop văn phòng',           'https://via.placeholder.com/300x300?text=Van+Phong', 2,    1, 2, 1, NOW(), NOW()),
+('Áo nam',          'ao-nam',           'Áo các loại cho nam',        'https://via.placeholder.com/300x300?text=Ao+Nam', 3,    1, 1, 1, NOW(), NOW());
+
+USE ecommerce;
+UPDATE categories
+SET image_url = CASE slug
+    WHEN 'dien-thoai' THEN 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9'
+    WHEN 'laptop' THEN 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853'
+    WHEN 'thoi-trang' THEN 'https://images.unsplash.com/photo-1483985988355-763728e1935b'
+    WHEN 'do-gia-dung' THEN 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7'
+    WHEN 'sach' THEN 'https://images.unsplash.com/photo-1512820790803-83ca734da794'
+    WHEN 'iphone' THEN 'https://images.unsplash.com/photo-1695048133142-1a20484d2569'
+    WHEN 'android' THEN 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf'
+    WHEN 'gaming-laptop' THEN 'https://images.unsplash.com/photo-1603302576837-37561b2e2302'
+    WHEN 'laptop-van-phong' THEN 'https://images.unsplash.com/photo-1517336714739-489689fd1ca8'
+    WHEN 'ao-nam' THEN 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab'
+END
+WHERE slug IN (
+    'dien-thoai',
+    'laptop',
+    'thoi-trang',
+    'do-gia-dung',
+    'sach',
+    'iphone',
+    'android',
+    'gaming-laptop',
+    'laptop-van-phong',
+    'ao-nam'
+);
 
 -- ============================================================
 -- 2. USERS (password = BCrypt của "123456")
@@ -141,6 +168,9 @@ INSERT INTO product_variants (product_id, variant_name, price, stock_quantity, s
 ALTER TABLE orders MODIFY COLUMN status VARCHAR(20) NOT NULL DEFAULT 'PENDING';
 ALTER TABLE shop_orders MODIFY COLUMN status VARCHAR(20) NOT NULL DEFAULT 'PENDING';
 
+-- Ensure disputes table has correct schema
+ALTER TABLE disputes MODIFY COLUMN status VARCHAR(30) NOT NULL DEFAULT 'OPEN';
+
 -- Lấy shop IDs thực tế (auto_increment có thể khác 1,2,3)
 SET @shop1 = (SELECT id FROM shops WHERE owner_id = 'user-seller-01' LIMIT 1);
 SET @shop2 = (SELECT id FROM shops WHERE owner_id = 'user-seller-02' LIMIT 1);
@@ -183,7 +213,7 @@ INSERT INTO shop_orders (order_id, shop_id, status, shipping_fee, shop_total_amo
 (@o7, @shop1, 'PREPARING', 30000, 38990000, 'user-seller-01'),
 (@o8, @shop3, 'PENDING',   20000, 89000,    'user-seller-03');
 
--- Order Items
+-- Get ShopOrder IDs for later use
 SET @so1 = (SELECT id FROM shop_orders WHERE order_id=@o1 LIMIT 1);
 SET @so2 = (SELECT id FROM shop_orders WHERE order_id=@o2 LIMIT 1);
 SET @so3 = (SELECT id FROM shop_orders WHERE order_id=@o3 LIMIT 1);
@@ -192,6 +222,8 @@ SET @so5 = (SELECT id FROM shop_orders WHERE order_id=@o5 LIMIT 1);
 SET @so6 = (SELECT id FROM shop_orders WHERE order_id=@o6 LIMIT 1);
 SET @so7 = (SELECT id FROM shop_orders WHERE order_id=@o7 LIMIT 1);
 SET @so8 = (SELECT id FROM shop_orders WHERE order_id=@o8 LIMIT 1);
+
+-- Order Items
 
 SET @v1  = (SELECT id FROM product_variants WHERE sku='IP15PM-256-BLK' LIMIT 1);
 SET @v4  = (SELECT id FROM product_variants WHERE sku='IP14-128-BLK'   LIMIT 1);

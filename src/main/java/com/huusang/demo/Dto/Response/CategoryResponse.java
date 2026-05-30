@@ -18,6 +18,7 @@ public class CategoryResponse {
     String name;
     String slug;
     String description;
+    String imageUrl;
     Long parentId;
     Integer level;
     Integer sortOrder;

@@ -46,12 +46,28 @@ public class Product {
 
     boolean available = true;
 
+    @Column(name = "hidden", columnDefinition = "BOOLEAN DEFAULT FALSE")
+    boolean hidden = false;
+
+    @Column(name = "hide_reason", columnDefinition = "TEXT")
+    String hideReason;
+
     LocalDateTime createdAt = LocalDateTime.now();
+    LocalDateTime updatedAt;
+
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {
             this.createdAt = LocalDateTime.now();
         }
+        if (this.updatedAt == null) {
+            this.updatedAt = LocalDateTime.now();
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 
 }

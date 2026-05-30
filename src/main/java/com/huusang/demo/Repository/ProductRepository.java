@@ -101,4 +101,23 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // Admin: Tất cả sản phẩm (kể cả ẩn)
     Page<Product> findAll(Pageable pageable);
+
+    // Admin: Lấy sản phẩm theo trạng thái hidden
+    @Query("""
+           SELECT p FROM Product p
+           WHERE p.hidden = :hidden
+           ORDER BY p.createdAt DESC
+           """)
+    Page<Product> findByHidden(
+            @Param("hidden") boolean hidden,
+            Pageable pageable
+    );
+
+    // Admin: Lấy sản phẩm không bị ẩn (available = true và hidden = false)
+    @Query("""
+           SELECT p FROM Product p
+           WHERE p.hidden = false
+           ORDER BY p.createdAt DESC
+           """)
+    Page<Product> findByHiddenFalse(Pageable pageable);
 }

@@ -22,7 +22,10 @@ public class ProductResponse {
     private Integer stockQuantity;
     private String imageUrl;
     private boolean available;
+    private boolean hidden;
+    private String hideReason;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     
     private Long shopId;
     private String shopName;

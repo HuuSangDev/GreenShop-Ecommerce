@@ -3,6 +3,7 @@ package com.huusang.demo.Controller;
 import com.huusang.demo.Dto.ApiResponse;
 import com.huusang.demo.Dto.Request.*;
 import com.huusang.demo.Dto.Response.*;
+import com.huusang.demo.Enum.ShopApplicationStatus;
 import com.huusang.demo.Enum.ShopStatus;
 import com.huusang.demo.Service.ShopService;
 import jakarta.validation.Valid;
@@ -30,6 +31,23 @@ public class ShopController {
     // ─────────────────────────────────────────────────────────────────────────
     //  SHOP APPLICATION — Đăng ký mở gian hàng
     // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * GET /shops/applications?status=PENDING
+     * Admin xem danh sách đơn đăng ký gian hàng, filter theo status.
+     * Quyền: ADMIN
+     */
+    @GetMapping("/applications")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<ShopApplicationResponse>> getApplications(
+            @RequestParam(required = false) ShopApplicationStatus status) {
+
+        List<ShopApplicationResponse> applications = shopService.getApplications(status);
+        return ApiResponse.<List<ShopApplicationResponse>>builder()
+                .message("Danh sách đơn đăng ký gian hàng")
+                .result(applications)
+                .build();
+    }
 
     /**
      * POST /shops/applications

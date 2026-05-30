@@ -345,10 +345,11 @@ public class ProductService {
      * Admin ẩn sản phẩm vi phạm
      */
     @Transactional
-    public void adminHideProduct(Long productId) {
+    public void adminHideProduct(Long productId, String reason) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
-        product.setAvailable(false);
+        product.setHidden(true);
+        product.setHideReason(reason != null ? reason : "");
         productRepository.save(product);
     }
 
@@ -356,7 +357,8 @@ public class ProductService {
     public void adminUnhideProduct(Long productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
-        product.setAvailable(true);
+        product.setHidden(false);
+        product.setHideReason(null);
         productRepository.save(product);
     }
 
@@ -365,7 +367,18 @@ public class ProductService {
      */
     public Page<ProductResponse> getAllProductsForAdmin(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Product> products = productRepository.findAll(pageable);
+        Page<Product> products = productRepository.findByHiddenFalse(pageable);
+        return products.map(productMapper::toResponse);
+    }
+
+    /**
+     * Admin lấy sản phẩm theo trạng thái hidden
+     * hidden = true: sản phẩm đã ẩn
+     * hidden = false: sản phẩm không bị ẩn
+     */
+    public Page<ProductResponse> getProductsByHiddenStatus(boolean hidden, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Product> products = productRepository.findByHidden(hidden, pageable);
         return products.map(productMapper::toResponse);
     }
 
