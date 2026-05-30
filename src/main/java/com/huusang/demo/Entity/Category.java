@@ -12,7 +12,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder    
+@Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(name = "categories", indexes = {
         @Index(name = "idx_category_parent_id", columnList = "parent_id"),

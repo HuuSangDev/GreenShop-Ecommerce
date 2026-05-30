@@ -26,17 +26,6 @@ public class VoucherController {
 
     VoucherService voucherService;
 
-    // ==================== ADMIN ====================
-
-    @GetMapping("/admin/all")
-    @PreAuthorize("hasAuthority('MANAGE_USER')")
-    public ApiResponse<List<VoucherResponse>> getAllVouchers() {
-        return ApiResponse.<List<VoucherResponse>>builder()
-                .message("Danh sách tất cả voucher")
-                .result(voucherService.getAllVouchers())
-                .build();
-    }
-
     // ==================== CRUD (Admin + Seller) ====================
 
     @PostMapping

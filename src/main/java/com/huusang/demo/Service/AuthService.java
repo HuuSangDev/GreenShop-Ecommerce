@@ -56,12 +56,6 @@ public class AuthService {
     {
         User user= userRepository.findByEmail(request.getEmail())
                 .orElseThrow(()-> new AppException(ErrorCode.USER_NOT_FOUND));
-        
-        // Kiểm tra tài khoản có bị khóa không
-        if (!user.isActive()) {
-            throw new AppException(ErrorCode.USER_IS_BANNED);
-        }
-        
         boolean authenticated=passwordEncoder.matches(request.getPassword(),user.getPassword());
         if (!authenticated)
             throw new AppException(ErrorCode.UNAUTHENTICATED);
@@ -96,12 +90,6 @@ public class AuthService {
         } catch (Exception e) {
             log.info("Token đã không hợp lệ sẵn rồi, không cần xử lý thêm");
         }
-    }
-
-    public UserResponse getMe(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        return userMapper.toUserResponse(user);
     }
 
     public AuthResponse refreshToken(RefreshRequest request)

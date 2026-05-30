@@ -128,7 +128,7 @@ public class DatabaseInitializer implements ApplicationRunner {
             User adminUser = User.builder()
                     .username("admin")
                     .email(adminEmail)
-                    .password(encoder.encode("123456"))
+                    .password(encoder.encode("admin"))
                     .fullName("Administrator")
                     .active(true)
                     .roles(new HashSet<>(List.of(adminRole)))

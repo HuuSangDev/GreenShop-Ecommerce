@@ -67,18 +67,6 @@ public enum ErrorCode {
     ADDRESS_NOT_OWNED(702, "Địa chỉ không thuộc về bạn"),
     ADDRESS_DEFAULT_CANNOT_DELETE(703, "Không thể xóa địa chỉ mặc định. Hãy đặt địa chỉ khác làm mặc định trước"),
     ADDRESS_NO_DEFAULT(704, "Bạn chưa có địa chỉ mặc định. Vui lòng thêm địa chỉ giao hàng"),
-
-    // DISPUTE
-    DISPUTE_NOT_FOUND(801, "Không tìm thấy khiếu nại"),
-    DISPUTE_ALREADY_EXISTS(802, "Đơn hàng này đã có khiếu nại đang xử lý"),
-    DISPUTE_ALREADY_RESOLVED(803, "Khiếu nại này đã được giải quyết"),
-    DISPUTE_SHOP_ORDER_NOT_FOUND(804, "Không tìm thấy đơn hàng shop để khiếu nại"),
-    DISPUTE_INVALID_VERDICT(805, "Phán quyết không hợp lệ. Chỉ chấp nhận RESOLVED_BUYER_WIN hoặc RESOLVED_SELLER_WIN"),
-
-    // ADMIN — USER MANAGEMENT
-    USER_ALREADY_BANNED(901, "Tài khoản đã bị khóa trước đó"),
-    USER_ALREADY_ACTIVE(902, "Tài khoản đã đang hoạt động"),
-    USER_IS_BANNED(903, "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên."),
     ;
 
     ErrorCode(int code, String message) {
