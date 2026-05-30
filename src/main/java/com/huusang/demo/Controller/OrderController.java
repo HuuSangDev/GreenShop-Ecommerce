@@ -97,6 +97,26 @@ public class OrderController {
         return ResponseEntity.ok().build();
     }
 
+    // ─── GET ORDER BY ID ─────────────────────────────────────────────────────────
+    /**
+     * GET /api/v1/orders/{orderId}
+     * Lấy thông tin đơn hàng theo ID — cần JWT.
+     * Frontend dùng để polling trạng thái SePay: PENDING_PAYMENT → PAID
+     */
+    @GetMapping("/api/v1/orders/{orderId}")
+    public ApiResponse<OrderResponse> getOrderById(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId) {
+
+        OrderResponse order = orderService.getOrderById(getUserEmail(jwt), orderId);
+
+        return ApiResponse.<OrderResponse>builder()
+                .code(200)
+                .message("Thông tin đơn hàng")
+                .result(order)
+                .build();
+    }
+
     // ─── HELPER ──────────────────────────────────────────────────────────────────
     // JWT subject là email — giống convention CartController
     private String getUserEmail(Jwt jwt) {
