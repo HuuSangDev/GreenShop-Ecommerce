@@ -67,6 +67,14 @@ public enum ErrorCode {
     ADDRESS_NOT_OWNED(702, "Địa chỉ không thuộc về bạn"),
     ADDRESS_DEFAULT_CANNOT_DELETE(703, "Không thể xóa địa chỉ mặc định. Hãy đặt địa chỉ khác làm mặc định trước"),
     ADDRESS_NO_DEFAULT(704, "Bạn chưa có địa chỉ mặc định. Vui lòng thêm địa chỉ giao hàng"),
+
+    // REVIEW
+    REVIEW_NOT_FOUND(801, "Review không tìm thấy"),
+    REVIEW_ALREADY_EXISTS(802, "Bạn đã đánh giá sản phẩm này rồi"),
+    REVIEW_ORDER_NOT_DELIVERED(803, "Đơn hàng chưa được giao"),
+    REVIEW_ORDER_ITEM_NOT_FOUND(804, "OrderItem không tìm thấy"),
+    REVIEW_NOT_OWNED(805, "Bạn không có quyền sửa/xóa review này"),
+    REVIEW_INVALID_RATING(806, "Rating phải từ 1 đến 5"),
     ;
 
     ErrorCode(int code, String message) {

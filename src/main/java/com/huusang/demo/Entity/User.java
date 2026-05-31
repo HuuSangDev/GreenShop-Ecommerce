@@ -49,5 +49,7 @@ public class User {
     @OneToMany(mappedBy = "user",cascade = CascadeType.ALL)
     List<RefreshToken> refreshTokens;
 
+    @OneToMany(mappedBy = "buyer", cascade = CascadeType.ALL)
+    List<Order> orders;
 
 }
