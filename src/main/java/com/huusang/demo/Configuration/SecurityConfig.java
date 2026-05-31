@@ -60,6 +60,8 @@ public class SecurityConfig {
                         .requestMatchers("/images/**").permitAll()
                         // Shipping test endpoint — không cần JWT để dễ test
                         .requestMatchers("/api/v1/shipping/test-checkout").permitAll()
+                        // WebSocket handshake — JWT được validate trong WebSocketConfig
+                        .requestMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated());
         // xác thực( authentication)
         http.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder())

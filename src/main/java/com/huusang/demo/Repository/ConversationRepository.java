@@ -13,8 +13,8 @@ import java.util.Optional;
 @Repository
 public interface ConversationRepository extends JpaRepository<Conversation, Long> {
 
-    @Query("SELECT c FROM Conversation c WHERE (c.buyer = :user1 AND c.seller = :user2) OR (c.buyer = :user2 AND c.seller = :user1)")
-    Optional<Conversation> findBetweenUsers(@Param("user1") User user1, @Param("user2") User user2);
+    @Query("SELECT c FROM Conversation c WHERE (c.buyer.id = :user1Id AND c.seller.id = :user2Id) OR (c.buyer.id = :user2Id AND c.seller.id = :user1Id)")
+    Optional<Conversation> findBetweenUsers(@Param("user1Id") String user1Id, @Param("user2Id") String user2Id);
 
     @Query("SELECT c FROM Conversation c WHERE c.buyer = :user OR c.seller = :user ORDER BY c.lastMessageAt DESC")
     List<Conversation> findAllByUserOrderByLastMessageAtDesc(@Param("user") User user);

@@ -19,6 +19,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,7 @@ public class MessageService {
     MessageRepository messageRepository;
     UserRepository userRepository;
     ShopRepository shopRepository;
+    SimpMessagingTemplate messagingTemplate; // WebSocket push
 
     // ─────────────────────────────────────────────────────────────────────────
     // 1. GET OR CREATE CONVERSATION
@@ -52,7 +54,7 @@ public class MessageService {
         }
 
         // Kiểm tra xem đã có cuộc hội thoại nào giữa 2 người chưa
-        Optional<Conversation> existing = conversationRepository.findBetweenUsers(currentUser, otherUser);
+        Optional<Conversation> existing = conversationRepository.findBetweenUsers(currentUser.getId(), otherUser.getId());
         Conversation conversation;
 
         if (existing.isPresent()) {
@@ -154,8 +156,29 @@ public class MessageService {
         // Đánh dấu các tin nhắn trước đó của đối phương gửi là đã đọc (isRead = true)
         messageRepository.markAsReadByConversationAndOtherSender(conversation, currentUser);
 
+        MessageResponse response = mapToMessageResponse(message);
+
+        // ── Push realtime qua WebSocket ────────────────────────────────────────
+        // Gửi cho receiver (người còn lại trong conversation)
+        User receiver = conversation.getBuyer().getId().equals(currentUser.getId())
+                ? conversation.getSeller()
+                : conversation.getBuyer();
+
+        // Push đến personal queue của receiver
+        messagingTemplate.convertAndSendToUser(
+                receiver.getEmail(),
+                "/queue/messages",
+                response
+        );
+
+        // Push broadcast vào topic của conversation (cả 2 tab đều nhận)
+        messagingTemplate.convertAndSend(
+                "/topic/conversation." + conversation.getId(),
+                response
+        );
+
         log.info("Message sent: id={}, convId={}, sender={}", message.getId(), conversation.getId(), currentUser.getEmail());
-        return mapToMessageResponse(message);
+        return response;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
