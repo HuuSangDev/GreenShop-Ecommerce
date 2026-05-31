@@ -75,6 +75,10 @@ public enum ErrorCode {
     REVIEW_ORDER_ITEM_NOT_FOUND(804, "OrderItem không tìm thấy"),
     REVIEW_NOT_OWNED(805, "Bạn không có quyền sửa/xóa review này"),
     REVIEW_INVALID_RATING(806, "Rating phải từ 1 đến 5"),
+    // CHAT / MESSAGING
+    CONVERSATION_NOT_FOUND(801, "Không tìm thấy cuộc hội thoại"),
+    CONVERSATION_ACCESS_DENIED(802, "Bạn không có quyền truy cập cuộc hội thoại này"),
+    CHAT_PARTICIPANT_INVALID(803, "Đối tác trò chuyện không hợp lệ"),
     ;
 
     ErrorCode(int code, String message) {

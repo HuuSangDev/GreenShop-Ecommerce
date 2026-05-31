@@ -117,6 +117,41 @@ public class OrderController {
                 .build();
     }
 
+    // ─── GET MY ORDERS ────────────────────────────────────────────────────────────
+    /**
+     * GET /api/v1/orders?status=PENDING
+     * Lấy danh sách đơn hàng của user đang đăng nhập.
+     * status là optional — không truyền thì lấy tất cả.
+     */
+    @GetMapping("/api/v1/orders")
+    public ApiResponse<java.util.List<OrderResponse>> getMyOrders(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) com.huusang.demo.Enum.OrderStatus status) {
+
+        return ApiResponse.<java.util.List<OrderResponse>>builder()
+                .code(200)
+                .message("Danh sách đơn hàng")
+                .result(orderService.getMyOrders(getUserEmail(jwt), status))
+                .build();
+    }
+
+    // ─── GET ORDER DETAIL ─────────────────────────────────────────────────────────
+    /**
+     * GET /api/v1/orders/{orderId}/detail
+     * Lấy chi tiết đầy đủ một đơn hàng: items, shop, payment, totals.
+     */
+    @GetMapping("/api/v1/orders/{orderId}/detail")
+    public ApiResponse<OrderResponse> getOrderDetail(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId) {
+
+        return ApiResponse.<OrderResponse>builder()
+                .code(200)
+                .message("Chi tiết đơn hàng")
+                .result(orderService.getOrderDetail(getUserEmail(jwt), orderId))
+                .build();
+    }
+
     // ─── HELPER ──────────────────────────────────────────────────────────────────
     // JWT subject là email — giống convention CartController
     private String getUserEmail(Jwt jwt) {

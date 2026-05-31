@@ -296,6 +296,149 @@ public class OrderService {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // GET MY ORDERS (danh sách đơn hàng của user, lọc theo status)
+    // GET /api/v1/orders?status=...
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Lấy danh sách đơn hàng của user đang đăng nhập.
+     * Nếu status null → trả tất cả.
+     * Nếu có status → lọc theo trạng thái.
+     */
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getMyOrders(String userEmail, OrderStatus status) {
+        User buyer = resolveUser(userEmail);
+
+        List<Order> orders = (status == null)
+                ? orderRepository.findByBuyer_IdOrderByCreatedAtDesc(buyer.getId())
+                : orderRepository.findByBuyer_IdAndStatusOrderByCreatedAtDesc(buyer.getId(), status);
+
+        return orders.stream()
+                .map(order -> {
+                    // Lấy preview tối giản cho danh sách: chỉ cần các items thuộc shopOrders
+                    List<ShopOrderResponse> shopOrderResponses = order.getShopOrders().stream()
+                            .map(shopOrder -> {
+                                List<OrderItemResponse> itemResponses = shopOrder.getOrderItems().stream()
+                                        .map(item -> OrderItemResponse.builder()
+                                                .orderItemId(item.getId())
+                                                .productName(item.getProductVariant().getProduct().getProductName())
+                                                .productImageUrl(item.getProductVariant().getProduct().getImageUrl())
+                                                .variantName(item.getProductVariant().getVariantName())
+                                                .quantity(item.getQuantity())
+                                                .priceAtBuy(item.getPriceAtBuy())
+                                                .subtotal(item.getPriceAtBuy().multiply(BigDecimal.valueOf(item.getQuantity())))
+                                                .build())
+                                        .toList();
+                                return ShopOrderResponse.builder()
+                                        .shopOrderId(shopOrder.getId())
+                                        .shopId(shopOrder.getShop().getId())
+                                        .sellerId(shopOrder.getShop().getOwner() != null ? shopOrder.getShop().getOwner().getId() : null)
+                                        .shopName(shopOrder.getShop().getShopName())
+                                        .items(itemResponses)
+                                        .build();
+                            })
+                            .toList();
+
+                    int totalItems = order.getShopOrders().stream()
+                            .flatMap(so -> so.getOrderItems().stream())
+                            .mapToInt(OrderItem::getQuantity).sum();
+
+                    return OrderResponse.builder()
+                            .orderId(order.getId())
+                            .status(order.getStatus())
+                            .paymentMethod(PaymentMethod.valueOf(order.getPaymentMethod()))
+                            .totalAmount(order.getTotalAmount())
+                            .shippingFee(order.getShopOrders().stream()
+                                    .map(so -> so.getShippingFee() != null ? so.getShippingFee() : BigDecimal.ZERO)
+                                    .reduce(BigDecimal.ZERO, BigDecimal::add))
+                            .discountAmount(order.getDiscountAmount())
+                            .finalAmount(order.getFinalAmount())
+                            .createdAt(order.getCreatedAt())
+                            .totalShops(shopOrderResponses.size())
+                            .totalItems(totalItems)
+                            .shopOrders(shopOrderResponses)
+                            .build();
+                })
+                .toList();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GET ORDER DETAIL BY ID (chi tiết đầy đủ)
+    // GET /api/v1/orders/{orderId}/detail
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Lấy chi tiết đầy đủ một đơn hàng: items, shop info, payment, address, totals.
+     */
+    @Transactional(readOnly = true)
+    public OrderResponse getOrderDetail(String userEmail, Long orderId) {
+        User buyer = resolveUser(userEmail);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        if (!order.getBuyer().getId().equals(buyer.getId())) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        List<ShopOrderResponse> shopOrderResponses = order.getShopOrders().stream()
+                .map(shopOrder -> {
+                    List<OrderItemResponse> itemResponses = shopOrder.getOrderItems().stream()
+                            .map(item -> OrderItemResponse.builder()
+                                    .orderItemId(item.getId())
+                                    .variantId(item.getProductVariant().getId())
+                                    .variantName(item.getProductVariant().getVariantName())
+                                    .sku(item.getProductVariant().getSku())
+                                    .productName(item.getProductVariant().getProduct().getProductName())
+                                    .productImageUrl(item.getProductVariant().getProduct().getImageUrl())
+                                    .quantity(item.getQuantity())
+                                    .priceAtBuy(item.getPriceAtBuy())
+                                    .subtotal(item.getPriceAtBuy().multiply(BigDecimal.valueOf(item.getQuantity())))
+                                    .build())
+                            .toList();
+                    return ShopOrderResponse.builder()
+                            .shopOrderId(shopOrder.getId())
+                            .shopId(shopOrder.getShop().getId())
+                            .sellerId(shopOrder.getShop().getOwner() != null ? shopOrder.getShop().getOwner().getId() : null)
+                            .shopName(shopOrder.getShop().getShopName())
+                            .status(shopOrder.getStatus())
+                            .shopTotalAmount(shopOrder.getShopTotalAmount())
+                            .shippingFee(shopOrder.getShippingFee())
+                            .items(itemResponses)
+                            .build();
+                })
+                .toList();
+
+        // Payment URL nếu SEPAY
+        String paymentUrl = null;
+        if ("SEPAY".equals(order.getPaymentMethod())) {
+            paymentUrl = paymentRepository.findByOrderId(order.getId())
+                    .map(Payment::getCheckoutUrl).orElse(null);
+        }
+
+        int totalItems = order.getShopOrders().stream()
+                .flatMap(so -> so.getOrderItems().stream())
+                .mapToInt(OrderItem::getQuantity).sum();
+
+        return OrderResponse.builder()
+                .orderId(order.getId())
+                .status(order.getStatus())
+                .paymentMethod(PaymentMethod.valueOf(order.getPaymentMethod()))
+                .totalAmount(order.getTotalAmount())
+                .shippingFee(order.getShopOrders().stream()
+                        .map(so -> so.getShippingFee() != null ? so.getShippingFee() : BigDecimal.ZERO)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add))
+                .discountAmount(order.getDiscountAmount())
+                .finalAmount(order.getFinalAmount())
+                .createdAt(order.getCreatedAt())
+                .totalShops(shopOrderResponses.size())
+                .totalItems(totalItems)
+                .shopOrders(shopOrderResponses)
+                .paymentUrl(paymentUrl)
+                .build();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // STEP 2 — SEPAY WEBHOOK CALLBACK
     // POST /api/v1/payments/sepay/webhook  (public, không cần JWT)
     // ═══════════════════════════════════════════════════════════════════════════

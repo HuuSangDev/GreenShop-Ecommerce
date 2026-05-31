@@ -16,6 +16,7 @@ public class ShopOrderResponse {
 
     Long shopOrderId;
     Long shopId;
+    String sellerId;     // UUID của shop owner — dùng để mở chat
     String shopName;
     OrderStatus status;
     BigDecimal shopTotalAmount;  // Tiền hàng của shop này
