@@ -39,6 +39,16 @@ public class ShopService {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
+     * ADMIN: Lấy danh sách đơn đăng ký, filter theo status.
+     */
+    public List<ShopApplicationResponse> getApplications(ShopApplicationStatus status) {
+        List<ShopApplication> applications = (status != null)
+                ? shopApplicationRepository.findByStatus(status)
+                : shopApplicationRepository.findAll();
+        return applications.stream().map(this::toApplicationResponse).collect(Collectors.toList());
+    }
+
+    /**
      * CUSTOMER: Nộp đơn đăng ký mở gian hàng.
      * - Ngăn nộp 2 đơn PENDING cùng lúc.
      * - Ngăn user đã có shop nộp đơn lại.

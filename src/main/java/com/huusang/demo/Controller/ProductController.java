@@ -204,8 +204,10 @@ public class ProductController {
 
     @PatchMapping("/{id}/hide")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<Void> adminHideProduct(@PathVariable Long id) {
-        productService.adminHideProduct(id);
+    public ApiResponse<Void> adminHideProduct(
+            @PathVariable Long id,
+            @RequestParam(required = false) String reason) {
+        productService.adminHideProduct(id, reason);
         return ApiResponse.<Void>builder()
                 .message("Đã ẩn sản phẩm vi phạm")
                 .build();
@@ -229,6 +231,18 @@ public class ProductController {
         return ApiResponse.<Page<ProductResponse>>builder()
                 .message("Danh sách tất cả sản phẩm")
                 .result(productService.getAllProductsForAdmin(page, size))
+                .build();
+    }
+
+    @GetMapping("/admin/hidden")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<Page<ProductResponse>> getHiddenProducts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        return ApiResponse.<Page<ProductResponse>>builder()
+                .message("Danh sách sản phẩm đã ẩn")
+                .result(productService.getProductsByHiddenStatus(true, page, size))
                 .build();
     }
 

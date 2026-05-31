@@ -82,7 +82,8 @@ public class CategoryService {
         Category category = Category.builder()
                 .name(request.getName())
                 .slug(generateUniqueSlug(request.getName(), null))
-                .description(request.getDescription())
+                .description(request.getDescription() != null ? request.getDescription() : "")
+                .imageUrl(request.getImageUrl())
                 .sortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0)
                 .isActive(true)
                 .build();
@@ -111,7 +112,8 @@ public class CategoryService {
         }
 
         category.setName(request.getName());
-        category.setDescription(request.getDescription());
+        category.setDescription(request.getDescription() != null ? request.getDescription() : "");
+        category.setImageUrl(request.getImageUrl());
         if (request.getSortOrder() != null) {
             category.setSortOrder(request.getSortOrder());
         }
@@ -155,6 +157,7 @@ public class CategoryService {
                 .name(c.getName())
                 .slug(c.getSlug())
                 .description(c.getDescription())
+                .imageUrl(c.getImageUrl())
                 .parentId(c.getParent() != null ? c.getParent().getId() : null)
                 .level(c.getLevel())
                 .sortOrder(c.getSortOrder())

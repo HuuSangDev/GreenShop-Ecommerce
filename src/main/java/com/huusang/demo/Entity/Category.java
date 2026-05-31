@@ -32,7 +32,11 @@ public class Category {
     String slug;
 
     @Column(length = 500)
-    String description;
+    @Builder.Default
+    String description = "";
+
+    @Column(name = "image_url", length = 500)
+    String imageUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
