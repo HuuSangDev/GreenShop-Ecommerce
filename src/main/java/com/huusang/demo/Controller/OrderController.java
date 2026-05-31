@@ -28,14 +28,14 @@ public class OrderController {
 
     // ─── CHECKOUT PREVIEW ────────────────────────────────────────────────────────
     /**
-     * POST /checkouts/preview
+     * POST /api/v1/checkouts/preview
      * Tính toán và hiển thị thông tin đơn hàng TRƯỚC KHI user xác nhận.
      * KHÔNG tạo order, KHÔNG trừ stock, KHÔNG tạo payment.
      *
      * Request: { "cartItemIds": ["id1", "id2"] }
      * Response: subtotal, shippingFee, finalAmount, items, paymentMethods
      */
-    @PostMapping("/checkouts/preview")
+    @PostMapping("/api/v1/checkouts/preview")
     public ApiResponse<CheckoutPreviewResponse> previewCheckout(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CheckoutPreviewRequest request) {
@@ -51,7 +51,7 @@ public class OrderController {
 
     // ─── CHECKOUT (COD / SEPAY) ───────────────────────────────────────────────────
     /**
-     * POST /orders
+     * POST /api/v1/orders
      * Đặt hàng Multi-Vendor.
      * <p>
      * COD  → tạo order, trừ stock ngay, xóa giỏ → return OrderResponse
@@ -59,7 +59,7 @@ public class OrderController {
      *
      * Request: { "cartItemIds": [...], "paymentMethod": "COD" | "SEPAY" }
      */
-    @PostMapping("/orders")
+    @PostMapping("/api/v1/orders")
     @ResponseStatus(HttpStatus.OK)
     public ApiResponse<OrderResponse> checkout(
             @AuthenticationPrincipal Jwt jwt,
@@ -81,7 +81,7 @@ public class OrderController {
 
     // ─── SEPAY WEBHOOK ───────────────────────────────────────────────────────────
     /**
-     * POST /payments/sepay/webhook
+     * POST /api/v1/payments/sepay/webhook
      * Endpoint PUBLIC — SePay server gọi khi giao dịch thành công.
      * KHÔNG cần JWT (SePay không có JWT của user).
      * <p>
@@ -90,11 +90,66 @@ public class OrderController {
      * SePay expects HTTP 200 OK. Nếu 4xx/5xx, SePay sẽ retry.
      * Ta dùng idempotency để an toàn khi retry.
      */
-    @PostMapping("/payments/sepay/webhook")
+    @PostMapping("/api/v1/payments/sepay/webhook")
     public ResponseEntity<Void> sePayWebhook(@RequestBody SePayWebhookRequest request) {
         log.info("SePay webhook hit: content='{}', amount={}", request.getContent(), request.getTransferAmount());
         orderService.handleSePayCallback(request);
         return ResponseEntity.ok().build();
+    }
+
+    // ─── GET ORDER BY ID ─────────────────────────────────────────────────────────
+    /**
+     * GET /api/v1/orders/{orderId}
+     * Lấy thông tin đơn hàng theo ID — cần JWT.
+     * Frontend dùng để polling trạng thái SePay: PENDING_PAYMENT → PAID
+     */
+    @GetMapping("/api/v1/orders/{orderId}")
+    public ApiResponse<OrderResponse> getOrderById(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId) {
+
+        OrderResponse order = orderService.getOrderById(getUserEmail(jwt), orderId);
+
+        return ApiResponse.<OrderResponse>builder()
+                .code(200)
+                .message("Thông tin đơn hàng")
+                .result(order)
+                .build();
+    }
+
+    // ─── GET MY ORDERS ────────────────────────────────────────────────────────────
+    /**
+     * GET /api/v1/orders?status=PENDING
+     * Lấy danh sách đơn hàng của user đang đăng nhập.
+     * status là optional — không truyền thì lấy tất cả.
+     */
+    @GetMapping("/api/v1/orders")
+    public ApiResponse<java.util.List<OrderResponse>> getMyOrders(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) com.huusang.demo.Enum.OrderStatus status) {
+
+        return ApiResponse.<java.util.List<OrderResponse>>builder()
+                .code(200)
+                .message("Danh sách đơn hàng")
+                .result(orderService.getMyOrders(getUserEmail(jwt), status))
+                .build();
+    }
+
+    // ─── GET ORDER DETAIL ─────────────────────────────────────────────────────────
+    /**
+     * GET /api/v1/orders/{orderId}/detail
+     * Lấy chi tiết đầy đủ một đơn hàng: items, shop, payment, totals.
+     */
+    @GetMapping("/api/v1/orders/{orderId}/detail")
+    public ApiResponse<OrderResponse> getOrderDetail(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId) {
+
+        return ApiResponse.<OrderResponse>builder()
+                .code(200)
+                .message("Chi tiết đơn hàng")
+                .result(orderService.getOrderDetail(getUserEmail(jwt), orderId))
+                .build();
     }
 
     // ─── HELPER ──────────────────────────────────────────────────────────────────

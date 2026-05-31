@@ -1,0 +1,317 @@
+package com.huusang.demo.Service;
+
+import com.huusang.demo.Dto.Request.CreateReviewRequest;
+import com.huusang.demo.Dto.Request.UpdateReviewRequest;
+import com.huusang.demo.Dto.Response.*;
+import com.huusang.demo.Entity.*;
+import com.huusang.demo.Enum.OrderStatus;
+import com.huusang.demo.Exception.AppException;
+import com.huusang.demo.Exception.ErrorCode;
+import com.huusang.demo.Repository.*;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Slf4j
+public class ReviewService {
+
+    ReviewRepository reviewRepository;
+    OrderItemRepository orderItemRepository;
+    ProductRepository productRepository;
+    UserRepository userRepository;
+    ShopRepository shopRepository;
+
+    // ─── CREATE ───────────────────────────────────────────────────────────────
+    @Transactional
+    public ReviewResponse createReview(String userEmail, CreateReviewRequest request) {
+        User user = getUserByEmail(userEmail);
+        OrderItem orderItem = getOrderItemOrThrow(request.getOrderItemId());
+
+        // Validate OrderItem belongs to user
+        if (!orderItem.getShopOrder().getOrder().getBuyer().getId().equals(user.getId())) {
+            throw new AppException(ErrorCode.ORDER_CART_ITEM_NOT_OWNED);
+        }
+
+        // Validate Order status = DELIVERED
+        Order order = orderItem.getShopOrder().getOrder();
+        if (order.getStatus() != OrderStatus.DELIVERED) {
+            throw new AppException(ErrorCode.REVIEW_ORDER_NOT_DELIVERED);
+        }
+
+        // Check no existing review
+        if (reviewRepository.findByOrderItemId(request.getOrderItemId()).isPresent()) {
+            throw new AppException(ErrorCode.REVIEW_ALREADY_EXISTS);
+        }
+
+        Product product = orderItem.getProductVariant().getProduct();
+
+        Review review = Review.builder()
+                .product(product)
+                .user(user)
+                .orderItem(orderItem)
+                .rating(request.getRating())
+                .comment(request.getComment())
+                .verifiedPurchase(true)
+                .build();
+
+        reviewRepository.save(review);
+        updateProductRating(product.getId());
+
+        log.info("Review created: reviewId={}, productId={}, userId={}, rating={}",
+                review.getId(), product.getId(), user.getId(), request.getRating());
+
+        return toReviewResponse(review);
+    }
+
+    // ─── UPDATE ───────────────────────────────────────────────────────────────
+    @Transactional
+    public ReviewResponse updateReview(String userEmail, Long reviewId, UpdateReviewRequest request) {
+        User user = getUserByEmail(userEmail);
+        Review review = getReviewOrThrow(reviewId);
+
+        // Check authorization
+        if (!review.getUser().getId().equals(user.getId())) {
+            throw new AppException(ErrorCode.REVIEW_NOT_OWNED);
+        }
+
+        review.setRating(request.getRating());
+        review.setComment(request.getComment());
+        reviewRepository.save(review);
+
+        updateProductRating(review.getProduct().getId());
+
+        log.info("Review updated: reviewId={}, rating={}", reviewId, request.getRating());
+
+        return toReviewResponse(review);
+    }
+
+    // ─── DELETE ───────────────────────────────────────────────────────────────
+    @Transactional
+    public void deleteReview(String userEmail, Long reviewId) {
+        User user = getUserByEmail(userEmail);
+        Review review = getReviewOrThrow(reviewId);
+
+        // Check authorization (owner or admin)
+        boolean isOwner = review.getUser().getId().equals(user.getId());
+        boolean isAdmin = user.getRoles().stream()
+                .anyMatch(role -> "ADMIN".equals(role.getName()));
+
+        if (!isOwner && !isAdmin) {
+            throw new AppException(ErrorCode.REVIEW_NOT_OWNED);
+        }
+
+        Long productId = review.getProduct().getId();
+        reviewRepository.delete(review);
+        updateProductRating(productId);
+
+        log.info("Review deleted: reviewId={}", reviewId);
+    }
+
+    // ─── GET ──────────────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public Page<ReviewResponse> getProductReviews(Long productId, Integer rating, Pageable pageable) {
+        // Validate product exists
+        if (!productRepository.existsById(productId)) {
+            throw new AppException(ErrorCode.PRODUCT_NOT_FOUND);
+        }
+
+        Page<Review> reviews;
+        if (rating != null) {
+            reviews = reviewRepository.findByProductIdAndRatingOrderByCreatedAtDesc(productId, rating, pageable);
+        } else {
+            reviews = reviewRepository.findByProductIdOrderByCreatedAtDesc(productId, pageable);
+        }
+
+        return reviews.map(this::toReviewResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ReviewDetailResponse> getUserReviews(String userId, Pageable pageable) {
+        // Validate user exists
+        if (!userRepository.existsById(userId)) {
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        Page<Review> reviews = reviewRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        return reviews.map(this::toReviewDetailResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public ReviewDetailResponse getReviewDetail(Long reviewId) {
+        Review review = getReviewOrThrow(reviewId);
+        return toReviewDetailResponse(review);
+    }
+
+    @Transactional(readOnly = true)
+    public ReviewResponse getUserProductReview(String userEmail, Long productId) {
+        User user = getUserByEmail(userEmail);
+
+        Review review = reviewRepository.findByProductIdAndUserId(productId, user.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.REVIEW_NOT_FOUND));
+
+        return toReviewResponse(review);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PendingReviewResponse> getPendingReviews(String userEmail) {
+        User user = getUserByEmail(userEmail);
+
+        // Get all delivered orders for user
+        List<Order> deliveredOrders = user.getOrders().stream()
+                .filter(order -> order.getStatus() == OrderStatus.DELIVERED)
+                .collect(Collectors.toList());
+
+        List<PendingReviewResponse> pending = new ArrayList<>();
+
+        for (Order order : deliveredOrders) {
+            for (ShopOrder shopOrder : order.getShopOrders()) {
+                for (OrderItem item : shopOrder.getOrderItems()) {
+                    // Check if review doesn't exist
+                    if (!reviewRepository.findByOrderItemId(item.getId()).isPresent()) {
+                        ProductVariant variant = item.getProductVariant();
+                        Product product = variant.getProduct();
+                        Shop shop = shopOrder.getShop();
+
+                        pending.add(PendingReviewResponse.builder()
+                                .orderItemId(item.getId())
+                                .orderId(order.getId())
+                                .productId(product.getId())
+                                .productName(product.getProductName())
+                                .productImage(product.getImageUrl())
+                                .variantName(variant.getVariantName())
+                                .shopId(shop.getId())
+                                .shopName(shop.getShopName())
+                                .quantity(item.getQuantity())
+                                .priceAtBuy(item.getPriceAtBuy())
+                                .deliveredAt(order.getCreatedAt())
+                                .build());
+                    }
+                }
+            }
+        }
+
+        return pending;
+    }
+
+    @Transactional(readOnly = true)
+    public ReviewStatsResponse getProductReviewStats(Long productId) {
+        // Validate product exists
+        if (!productRepository.existsById(productId)) {
+            throw new AppException(ErrorCode.PRODUCT_NOT_FOUND);
+        }
+
+        Product product = productRepository.findById(productId).get();
+
+        // Get rating distribution
+        List<Object[]> distribution = reviewRepository.getRatingDistribution(productId);
+        Map<Integer, Integer> ratingDistribution = new HashMap<>();
+        for (int i = 5; i >= 1; i--) {
+            ratingDistribution.put(i, 0);
+        }
+
+        for (Object[] row : distribution) {
+            Integer rating = ((Number) row[0]).intValue();
+            Integer count = ((Number) row[1]).intValue();
+            ratingDistribution.put(rating, count);
+        }
+
+        return ReviewStatsResponse.builder()
+                .averageRating(product.getAverageRating())
+                .totalReviews(product.getTotalReviews())
+                .ratingDistribution(ratingDistribution)
+                .build();
+    }
+
+    // ─── HELPER METHODS ───────────────────────────────────────────────────────
+    @Transactional
+    public void updateProductRating(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        BigDecimal averageRating = reviewRepository.getAverageRating(productId);
+        Integer totalReviews = reviewRepository.countReviewsByProduct(productId);
+
+        if (averageRating == null) {
+            averageRating = BigDecimal.ZERO;
+        } else {
+            averageRating = averageRating.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        if (totalReviews == null) {
+            totalReviews = 0;
+        }
+
+        product.setAverageRating(averageRating);
+        product.setTotalReviews(totalReviews);
+        productRepository.save(product);
+
+        log.info("Product rating updated: productId={}, averageRating={}, totalReviews={}",
+                productId, averageRating, totalReviews);
+    }
+
+    private User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private OrderItem getOrderItemOrThrow(Long id) {
+        return orderItemRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.REVIEW_ORDER_ITEM_NOT_FOUND));
+    }
+
+    private Review getReviewOrThrow(Long id) {
+        return reviewRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.REVIEW_NOT_FOUND));
+    }
+
+    private ReviewResponse toReviewResponse(Review review) {
+        return ReviewResponse.builder()
+                .id(review.getId())
+                .productId(review.getProduct().getId())
+                .productName(review.getProduct().getProductName())
+                .productImage(review.getProduct().getImageUrl())
+                .userId(review.getUser().getId())
+                .userName(review.getUser().getFullName() != null ? review.getUser().getFullName() : review.getUser().getUsername())
+                .userAvatar(null) // Add avatar field to User if needed
+                .rating(review.getRating())
+                .comment(review.getComment())
+                .verifiedPurchase(review.isVerifiedPurchase())
+                .createdAt(review.getCreatedAt())
+                .updatedAt(review.getUpdatedAt())
+                .build();
+    }
+
+    private ReviewDetailResponse toReviewDetailResponse(Review review) {
+        Shop shop = review.getProduct().getShop();
+        return ReviewDetailResponse.builder()
+                .id(review.getId())
+                .productId(review.getProduct().getId())
+                .productName(review.getProduct().getProductName())
+                .productImage(review.getProduct().getImageUrl())
+                .shopId(shop != null ? shop.getId() : null)
+                .shopName(shop != null ? shop.getShopName() : null)
+                .userId(review.getUser().getId())
+                .userName(review.getUser().getFullName() != null ? review.getUser().getFullName() : review.getUser().getUsername())
+                .userAvatar(null)
+                .rating(review.getRating())
+                .comment(review.getComment())
+                .verifiedPurchase(review.isVerifiedPurchase())
+                .createdAt(review.getCreatedAt())
+                .updatedAt(review.getUpdatedAt())
+                .build();
+    }
+}

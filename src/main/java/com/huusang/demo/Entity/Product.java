@@ -52,6 +52,15 @@ public class Product {
     @Column(name = "hide_reason", columnDefinition = "TEXT")
     String hideReason;
 
+    @Column(name = "average_rating", precision = 3, scale = 2)
+    BigDecimal averageRating = BigDecimal.ZERO;
+
+    @Column(name = "total_reviews")
+    Integer totalReviews = 0;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
+    List<Review> reviews;
+
     LocalDateTime createdAt = LocalDateTime.now();
     LocalDateTime updatedAt;
 

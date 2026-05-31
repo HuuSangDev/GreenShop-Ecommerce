@@ -68,17 +68,17 @@ public enum ErrorCode {
     ADDRESS_DEFAULT_CANNOT_DELETE(703, "Không thể xóa địa chỉ mặc định. Hãy đặt địa chỉ khác làm mặc định trước"),
     ADDRESS_NO_DEFAULT(704, "Bạn chưa có địa chỉ mặc định. Vui lòng thêm địa chỉ giao hàng"),
 
-    // DISPUTE
-    DISPUTE_NOT_FOUND(801, "Không tìm thấy khiếu nại"),
-    DISPUTE_ALREADY_EXISTS(802, "Đơn hàng này đã có khiếu nại đang xử lý"),
-    DISPUTE_ALREADY_RESOLVED(803, "Khiếu nại này đã được giải quyết"),
-    DISPUTE_SHOP_ORDER_NOT_FOUND(804, "Không tìm thấy đơn hàng shop để khiếu nại"),
-    DISPUTE_INVALID_VERDICT(805, "Phán quyết không hợp lệ. Chỉ chấp nhận RESOLVED_BUYER_WIN hoặc RESOLVED_SELLER_WIN"),
-
-    // ADMIN — USER MANAGEMENT
-    USER_ALREADY_BANNED(901, "Tài khoản đã bị khóa trước đó"),
-    USER_ALREADY_ACTIVE(902, "Tài khoản đã đang hoạt động"),
-    USER_IS_BANNED(903, "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên."),
+    // REVIEW
+    REVIEW_NOT_FOUND(801, "Review không tìm thấy"),
+    REVIEW_ALREADY_EXISTS(802, "Bạn đã đánh giá sản phẩm này rồi"),
+    REVIEW_ORDER_NOT_DELIVERED(803, "Đơn hàng chưa được giao"),
+    REVIEW_ORDER_ITEM_NOT_FOUND(804, "OrderItem không tìm thấy"),
+    REVIEW_NOT_OWNED(805, "Bạn không có quyền sửa/xóa review này"),
+    REVIEW_INVALID_RATING(806, "Rating phải từ 1 đến 5"),
+    // CHAT / MESSAGING
+    CONVERSATION_NOT_FOUND(801, "Không tìm thấy cuộc hội thoại"),
+    CONVERSATION_ACCESS_DENIED(802, "Bạn không có quyền truy cập cuộc hội thoại này"),
+    CHAT_PARTICIPANT_INVALID(803, "Đối tác trò chuyện không hợp lệ"),
     ;
 
     ErrorCode(int code, String message) {

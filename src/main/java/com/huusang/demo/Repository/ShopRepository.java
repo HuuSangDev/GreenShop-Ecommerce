@@ -26,7 +26,4 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
 
     // Kiểm tra user đã có shop chưa
     boolean existsByOwnerId(String ownerId);
-
-    // ADMIN: Đếm số shop mới đăng ký từ thời điểm `since`
-    long countByCreatedAtAfter(java.time.LocalDateTime since);
 }

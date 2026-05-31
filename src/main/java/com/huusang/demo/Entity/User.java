@@ -35,7 +35,7 @@ public class User {
     String fullName;
 
     boolean active = true;
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_roles",
             joinColumns = @JoinColumn(name = "user_id"),
@@ -49,5 +49,7 @@ public class User {
     @OneToMany(mappedBy = "user",cascade = CascadeType.ALL)
     List<RefreshToken> refreshTokens;
 
+    @OneToMany(mappedBy = "buyer", cascade = CascadeType.ALL)
+    List<Order> orders;
 
 }
