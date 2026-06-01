@@ -11,33 +11,30 @@ import java.util.List;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
-    // Lấy tất cả root categories của shop (không có parent)
-    List<Category> findByShopIdAndParentIsNullAndIsActiveTrueOrderBySortOrderAsc(Long shopId);
+    // Lấy tất cả root categories (không có parent)
+    List<Category> findByParentIsNullAndIsActiveTrueOrderBySortOrderAsc();
 
-    // Lấy children trực tiếp của một category của shop
-    List<Category> findByShopIdAndParentIdAndIsActiveTrueOrderBySortOrderAsc(Long shopId, Long parentId);
+    // Lấy children trực tiếp của một category
+    List<Category> findByParentIdAndIsActiveTrueOrderBySortOrderAsc(Long parentId);
 
-    // Kiểm tra tên trùng trong cùng parent của shop (null-safe)
+    // Kiểm tra tên trùng trong cùng parent (null-safe)
     @Query("""
             SELECT COUNT(c) > 0 FROM Category c
-            WHERE c.shop.id = :shopId
-            AND c.name = :name
+            WHERE c.name = :name
             AND c.isActive = true
             AND ((:parentId IS NULL AND c.parent IS NULL) OR c.parent.id = :parentId)
             """)
-    boolean existsByShopIdAndNameAndParentId(@Param("shopId") Long shopId, @Param("name") String name, @Param("parentId") Long parentId);
+    boolean existsByNameAndParentId(@Param("name") String name, @Param("parentId") Long parentId);
 
-    // Kiểm tra tên trùng khi update của shop (loại trừ chính nó)
+    // Kiểm tra tên trùng khi update (loại trừ chính nó)
     @Query("""
             SELECT COUNT(c) > 0 FROM Category c
-            WHERE c.shop.id = :shopId
-            AND c.name = :name
+            WHERE c.name = :name
             AND c.id <> :excludeId
             AND c.isActive = true
             AND ((:parentId IS NULL AND c.parent IS NULL) OR c.parent.id = :parentId)
             """)
-    boolean existsByShopIdAndNameAndParentIdExcludeId(
-            @Param("shopId") Long shopId,
+    boolean existsByNameAndParentIdExcludeId(
             @Param("name") String name,
             @Param("parentId") Long parentId,
             @Param("excludeId") Long excludeId);
@@ -46,16 +43,16 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     @Query("SELECT COUNT(p) FROM Product p WHERE p.category.id = :categoryId")
     long countProductsByCategoryId(@Param("categoryId") Long categoryId);
 
-    // Đếm danh mục con của shop (để chặn xóa)
-    long countByShopIdAndParentIdAndIsActiveTrue(Long shopId, Long parentId);
+    // Đếm danh mục con (để chặn xóa)
+    long countByParentIdAndIsActiveTrue(Long parentId);
 
-    // Load toàn bộ cây 1 lần của shop — build tree in-memory, tránh N+1
-    @Query("SELECT c FROM Category c WHERE c.shop.id = :shopId AND c.isActive = true ORDER BY c.level ASC, c.sortOrder ASC")
-    List<Category> findAllActiveOrderedByLevelAndSort(@Param("shopId") Long shopId);
+    // Load toàn bộ cây 1 lần — build tree in-memory, tránh N+1
+    @Query("SELECT c FROM Category c WHERE c.isActive = true ORDER BY c.level ASC, c.sortOrder ASC")
+    List<Category> findAllActiveOrderedByLevelAndSort();
 
-    // Kiểm tra slug trùng trong shop
-    boolean existsByShopIdAndSlugAndIdNot(Long shopId, String slug, Long id);
-    boolean existsByShopIdAndSlug(Long shopId, String slug);
+    // Kiểm tra slug trùng
+    boolean existsBySlugAndIdNot(String slug, Long id);
+    boolean existsBySlug(String slug);
 
     /**
      * Lấy ID của chính danh mục đó VÀ tất cả danh mục con cấp 1.
