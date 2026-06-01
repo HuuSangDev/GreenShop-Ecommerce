@@ -195,6 +195,14 @@ public class VoucherService {
     }
 
     /**
+     * Danh sách tất cả voucher (Admin xem)
+     */
+    public List<VoucherResponse> getAllVouchers() {
+        return voucherRepository.findAll()
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    /**
      * Voucher user có thể dùng cho đơn hàng hiện tại
      * Bao gồm: voucher toàn sàn + voucher của shop đang mua
      */

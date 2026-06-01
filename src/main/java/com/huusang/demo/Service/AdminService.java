@@ -1,0 +1,342 @@
+package com.huusang.demo.Service;
+
+import com.huusang.demo.Dto.Response.AdminWalletResponse;
+import com.huusang.demo.Dto.Response.ShopWalletResponse;
+import com.huusang.demo.Dto.Response.OrderResponse;
+import com.huusang.demo.Dto.Response.WithdrawalResponse;
+import com.huusang.demo.Dto.Request.WithdrawalRequest;
+import com.huusang.demo.Entity.*;
+import com.huusang.demo.Enum.OrderStatus;
+import com.huusang.demo.Exception.AppException;
+import com.huusang.demo.Exception.ErrorCode;
+import com.huusang.demo.Repository.*;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Slf4j
+public class AdminService {
+
+    UserRepository userRepository;
+    ShopRepository shopRepository;
+    ProductRepository productRepository;
+    OrderRepository orderRepository;
+    ShopOrderRepository shopOrderRepository;
+    PaymentRepository paymentRepository;
+    WithdrawalRepository withdrawalRepository;
+    AdminWalletRepository adminWalletRepository;
+    ShopWalletRepository shopWalletRepository;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ANALYTICS & DASHBOARD
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getSystemOverview() {
+        Map<String, Object> overview = new HashMap<>();
+
+        // Tổng GMV (Gross Merchandise Value)
+        BigDecimal totalGmv = orderRepository.findAll().stream()
+                .filter(o -> o.getStatus() == OrderStatus.COMPLETED || o.getStatus() == OrderStatus.DELIVERED)
+                .map(Order::getFinalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Đơn hàng hôm nay
+        LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
+        long ordersToday = orderRepository.findAll().stream()
+                .filter(o -> o.getCreatedAt().isAfter(startOfDay))
+                .count();
+
+        // Tổng đơn hàng
+        long totalOrders = orderRepository.count();
+
+        // Tổng người dùng
+        long totalUsers = userRepository.count();
+
+        // Tổng shop
+        long totalShops = shopRepository.count();
+
+        // Top sản phẩm (mock data - cần implement logic thực tế)
+        List<Map<String, Object>> topProducts = new ArrayList<>();
+        Map<String, Object> product1 = new HashMap<>();
+        product1.put("name", "iPhone 15 Pro Max");
+        product1.put("sales", 100);
+        product1.put("revenue", 3499000000L);
+        topProducts.add(product1);
+
+        // Đơn hàng gần đây
+        List<Map<String, Object>> recentOrders = orderRepository.findAll().stream()
+                .sorted((o1, o2) -> o2.getCreatedAt().compareTo(o1.getCreatedAt()))
+                .limit(5)
+                .map(order -> {
+                    Map<String, Object> orderMap = new HashMap<>();
+                    orderMap.put("orderId", "ORD" + order.getId());
+                    orderMap.put("customer", order.getBuyer() != null ? order.getBuyer().getFullName() : "Unknown");
+                    orderMap.put("status", order.getStatus().name());
+                    orderMap.put("amount", order.getFinalAmount());
+                    orderMap.put("createdAt", order.getCreatedAt());
+                    return orderMap;
+                })
+                .collect(Collectors.toList());
+
+        overview.put("totalGmv", totalGmv);
+        overview.put("totalOrdersToday", ordersToday);
+        overview.put("totalOrdersAllTime", totalOrders);
+        overview.put("totalUsers", totalUsers);
+        overview.put("totalShops", totalShops);
+        overview.put("topProducts", topProducts);
+        overview.put("recentOrders", recentOrders);
+
+        return overview;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getRevenueChart(String period) {
+        List<Map<String, Object>> chartData = new ArrayList<>();
+
+        if ("DAILY".equals(period)) {
+            // Doanh thu 7 ngày gần nhất
+            for (int i = 6; i >= 0; i--) {
+                LocalDateTime date = LocalDateTime.now().minusDays(i);
+                LocalDateTime startOfDay = date.withHour(0).withMinute(0).withSecond(0);
+                LocalDateTime endOfDay = date.withHour(23).withMinute(59).withSecond(59);
+
+                BigDecimal revenue = orderRepository.findAll().stream()
+                        .filter(o -> o.getCreatedAt().isAfter(startOfDay) && o.getCreatedAt().isBefore(endOfDay))
+                        .filter(o -> o.getStatus() == OrderStatus.COMPLETED || o.getStatus() == OrderStatus.DELIVERED)
+                        .map(Order::getFinalAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                Map<String, Object> data = new HashMap<>();
+                data.put("label", "Day " + (7 - i));
+                data.put("revenue", revenue);
+                chartData.add(data);
+            }
+        } else if ("MONTHLY".equals(period)) {
+            // Doanh thu 12 tháng gần nhất
+            for (int i = 11; i >= 0; i--) {
+                LocalDateTime date = LocalDateTime.now().minusMonths(i);
+                LocalDateTime startOfMonth = date.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+                LocalDateTime endOfMonth = date.withDayOfMonth(date.toLocalDate().lengthOfMonth())
+                        .withHour(23).withMinute(59).withSecond(59);
+
+                BigDecimal revenue = orderRepository.findAll().stream()
+                        .filter(o -> o.getCreatedAt().isAfter(startOfMonth) && o.getCreatedAt().isBefore(endOfMonth))
+                        .filter(o -> o.getStatus() == OrderStatus.COMPLETED || o.getStatus() == OrderStatus.DELIVERED)
+                        .map(Order::getFinalAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                Map<String, Object> data = new HashMap<>();
+                data.put("label", "Month " + (12 - i));
+                data.put("revenue", revenue);
+                chartData.add(data);
+            }
+        }
+
+        return chartData;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // USER MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Transactional
+    public void banUser(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setActive(false);
+        userRepository.save(user);
+        log.info("User {} has been banned", userId);
+    }
+
+    @Transactional
+    public void unbanUser(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setActive(true);
+        userRepository.save(user);
+        log.info("User {} has been unbanned", userId);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PRODUCT MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Transactional
+    public void hideProduct(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+        product.setAvailable(false);
+        productRepository.save(product);
+        log.info("Product {} has been hidden", productId);
+    }
+
+    @Transactional
+    public void unhideProduct(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+        product.setAvailable(true);
+        productRepository.save(product);
+        log.info("Product {} has been unhidden", productId);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ORDER MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Transactional(readOnly = true)
+    public Page<OrderResponse> getAllOrders(OrderStatus status, Pageable pageable) {
+        List<Order> orders;
+        if (status != null) {
+            orders = orderRepository.findByStatusOrderByCreatedAtDesc(status);
+        } else {
+            orders = orderRepository.findAllByOrderByCreatedAtDesc();
+        }
+
+        List<OrderResponse> orderResponses = orders.stream()
+                .map(order -> OrderResponse.builder()
+                        .orderId(order.getId())
+                        .status(order.getStatus())
+                        .totalAmount(order.getTotalAmount())
+                        .finalAmount(order.getFinalAmount())
+                        .createdAt(order.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), orderResponses.size());
+        List<OrderResponse> pageContent = orderResponses.subList(start, end);
+
+        return new PageImpl<>(pageContent, pageable, orderResponses.size());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DISPUTE MANAGEMENT (Mock - cần implement thực tế)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Transactional(readOnly = true)
+    public Page<Map<String, Object>> getDisputes(String status, Pageable pageable) {
+        // Mock data - trong thực tế cần có bảng Dispute
+        List<Map<String, Object>> disputes = new ArrayList<>();
+        return new PageImpl<>(disputes, pageable, 0);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getDisputeDetail(Long id) {
+        // Mock data - trong thực tế cần có bảng Dispute
+        Map<String, Object> dispute = new HashMap<>();
+        dispute.put("id", id);
+        dispute.put("status", "PENDING");
+        dispute.put("reason", "Sản phẩm lỗi");
+        return dispute;
+    }
+
+    @Transactional
+    public void resolveDispute(Long id, String verdict, String adminNote) {
+        // Mock - trong thực tế cần update bảng Dispute
+        log.info("Dispute {} resolved with verdict: {}, note: {}", id, verdict, adminNote);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // WITHDRAWALS MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // WALLET MANAGEMENT (Mock - cần implement thực tế)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Transactional(readOnly = true)
+    public AdminWalletResponse getAdminWallet() {
+        AdminWallet wallet = getOrCreateAdminWallet();
+        return toAdminWalletResponse(wallet);
+    }
+
+    @Transactional
+    public AdminWalletResponse withdrawFromAdminWallet(WithdrawalRequest request) {
+        AdminWallet wallet = getOrCreateAdminWallet();
+        
+        // Kiểm tra số dư
+        if (wallet.getBalance().compareTo(request.getAmount()) < 0) {
+            throw new AppException(ErrorCode.SHOP_INSUFFICIENT_BALANCE);
+        }
+
+        // Trừ tiền khỏi balance
+        wallet.setBalance(wallet.getBalance().subtract(request.getAmount()));
+        wallet.setTotalWithdrawn(wallet.getTotalWithdrawn().add(request.getAmount()));
+        adminWalletRepository.save(wallet);
+
+        log.info("Admin withdrew {} VND", request.getAmount());
+        return toAdminWalletResponse(wallet);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ShopWalletResponse> getAllShopWallets() {
+        return shopWalletRepository.findAll().stream()
+                .map(wallet -> {
+                    // Eager load shop để tránh lazy loading exception
+                    Shop shop = wallet.getShop();
+                    return ShopWalletResponse.builder()
+                            .id(wallet.getId())
+                            .shopId(shop.getId())
+                            .shopName(shop.getShopName())
+                            .balance(wallet.getBalance())
+                            .totalEarned(wallet.getTotalEarned())
+                            .totalWithdrawn(wallet.getTotalWithdrawn())
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<WithdrawalResponse> getSellerWithdrawals(Pageable pageable) {
+        Page<Withdrawal> withdrawals = withdrawalRepository.findAll(pageable);
+        return withdrawals.map(withdrawal -> {
+            // Eager load shop để tránh lazy loading exception
+            Shop shop = withdrawal.getShop();
+            return WithdrawalResponse.builder()
+                    .id(withdrawal.getId())
+                    .shopId(shop.getId())
+                    .shopName(shop.getShopName())
+                    .amount(withdrawal.getAmount())
+                    .status(withdrawal.getStatus())
+                    .requestedAt(withdrawal.getRequestedAt())
+                    .resolvedAt(withdrawal.getResolvedAt())
+                    .build();
+        });
+    }
+
+    private AdminWallet getOrCreateAdminWallet() {
+        return adminWalletRepository.findFirstByOrderByIdAsc()
+                .orElseGet(() -> {
+                    AdminWallet newWallet = AdminWallet.builder()
+                            .balance(BigDecimal.ZERO)
+                            .totalEarned(BigDecimal.ZERO)
+                            .totalWithdrawn(BigDecimal.ZERO)
+                            .build();
+                    return adminWalletRepository.save(newWallet);
+                });
+    }
+
+    private AdminWalletResponse toAdminWalletResponse(AdminWallet wallet) {
+        return AdminWalletResponse.builder()
+                .id(wallet.getId())
+                .balance(wallet.getBalance())
+                .totalEarned(wallet.getTotalEarned())
+                .totalWithdrawn(wallet.getTotalWithdrawn())
+                .build();
+    }
+}
