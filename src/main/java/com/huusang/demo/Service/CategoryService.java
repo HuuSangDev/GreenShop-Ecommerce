@@ -3,9 +3,13 @@ package com.huusang.demo.Service;
 import com.huusang.demo.Dto.Request.CategoryRequest;
 import com.huusang.demo.Dto.Response.CategoryResponse;
 import com.huusang.demo.Entity.Category;
+import com.huusang.demo.Entity.Shop;
+import com.huusang.demo.Entity.User;
 import com.huusang.demo.Exception.AppException;
 import com.huusang.demo.Exception.ErrorCode;
 import com.huusang.demo.Repository.CategoryRepository;
+import com.huusang.demo.Repository.ShopRepository;
+import com.huusang.demo.Repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -23,12 +27,35 @@ import java.util.*;
 public class CategoryService {
 
     CategoryRepository categoryRepository;
+    ShopRepository shopRepository;
+    UserRepository userRepository;
 
-    // ─── GET TREE ────────────────────────────────────────────────────────────
-    // Load toàn bộ 1 query, build tree in-memory → tránh N+1
+    // ─── HELPER TO GET SHOP BY USER EMAIL ────────────────────────────────────
+    private Shop getShopByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return shopRepository.findByOwnerId(user.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.SHOP_NOT_FOUND));
+    }
+
+    // ─── GET TREE (SHOP-SPECIFIC) ────────────────────────────────────────────
     @Transactional(readOnly = true)
-    public List<CategoryResponse> getCategoryTree() {
-        List<Category> all = categoryRepository.findAllActiveOrderedByLevelAndSort();
+    public List<CategoryResponse> getCategoryTree(String email, Long shopId) {
+        Long targetShopId = shopId;
+        if (targetShopId == null && email != null) {
+            try {
+                Shop shop = getShopByEmail(email);
+                targetShopId = shop.getId();
+            } catch (Exception e) {
+                log.warn("Could not resolve shop for email {}: {}", email, e.getMessage());
+            }
+        }
+
+        if (targetShopId == null) {
+            return Collections.emptyList();
+        }
+
+        List<Category> all = categoryRepository.findAllActiveOrderedByLevelAndSort(targetShopId);
 
         Map<Long, CategoryResponse> nodeMap = new LinkedHashMap<>();
         List<CategoryResponse> roots = new ArrayList<>();
@@ -63,7 +90,7 @@ public class CategoryService {
 
         // Lấy children trực tiếp (1 level)
         List<CategoryResponse> children = categoryRepository
-                .findByParentIdAndIsActiveTrueOrderBySortOrderAsc(id)
+                .findByShopIdAndParentIdAndIsActiveTrueOrderBySortOrderAsc(category.getShop().getId(), id)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -71,17 +98,20 @@ public class CategoryService {
         return response;
     }
 
-    // ─── CREATE ──────────────────────────────────────────────────────────────
+    // ─── CREATE (SHOP-SPECIFIC) ──────────────────────────────────────────────
     @Transactional
-    public CategoryResponse createCategory(CategoryRequest request) {
-        // Validate tên trùng trong cùng parent
-        if (categoryRepository.existsByNameAndParentId(request.getName(), request.getParentId())) {
+    public CategoryResponse createCategory(CategoryRequest request, String email) {
+        Shop shop = getShopByEmail(email);
+
+        // Validate tên trùng trong cùng parent của shop
+        if (categoryRepository.existsByShopIdAndNameAndParentId(shop.getId(), request.getName(), request.getParentId())) {
             throw new AppException(ErrorCode.CATEGORY_NAME_EXISTED);
         }
 
         Category category = Category.builder()
+                .shop(shop)
                 .name(request.getName())
-                .slug(generateUniqueSlug(request.getName(), null))
+                .slug(generateUniqueSlug(shop.getId(), request.getName(), null))
                 .description(request.getDescription() != null ? request.getDescription() : "")
                 .imageUrl(request.getImageUrl())
                 .sortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0)
@@ -90,6 +120,10 @@ public class CategoryService {
 
         if (request.getParentId() != null) {
             Category parent = findOrThrow(request.getParentId());
+            // Đảm bảo parent thuộc cùng một shop
+            if (!parent.getShop().getId().equals(shop.getId())) {
+                throw new AppException(ErrorCode.CATEGORY_NOT_FOUND);
+            }
             category.setParent(parent);
             category.setLevel(parent.getLevel() + 1);
         } else {
@@ -99,15 +133,21 @@ public class CategoryService {
         return toResponse(categoryRepository.save(category));
     }
 
-    // ─── UPDATE ──────────────────────────────────────────────────────────────
+    // ─── UPDATE (SHOP-SPECIFIC) ──────────────────────────────────────────────
     @Transactional
-    public CategoryResponse updateCategory(Long id, CategoryRequest request) {
+    public CategoryResponse updateCategory(Long id, CategoryRequest request, String email) {
+        Shop shop = getShopByEmail(email);
         Category category = findOrThrow(id);
+
+        // Đảm bảo danh mục thuộc về shop của người dùng hiện tại
+        if (!category.getShop().getId().equals(shop.getId())) {
+            throw new AppException(ErrorCode.CATEGORY_NOT_FOUND);
+        }
 
         Long parentId = category.getParent() != null ? category.getParent().getId() : null;
 
-        // Validate tên trùng (loại trừ chính nó)
-        if (categoryRepository.existsByNameAndParentIdExcludeId(request.getName(), parentId, id)) {
+        // Validate tên trùng (loại trừ chính nó) của shop
+        if (categoryRepository.existsByShopIdAndNameAndParentIdExcludeId(shop.getId(), request.getName(), parentId, id)) {
             throw new AppException(ErrorCode.CATEGORY_NAME_EXISTED);
         }
 
@@ -123,11 +163,17 @@ public class CategoryService {
 
     // ─── DELETE (soft delete) ────────────────────────────────────────────────
     @Transactional
-    public void deleteCategory(Long id) {
+    public void deleteCategory(Long id, String email) {
+        Shop shop = getShopByEmail(email);
         Category category = findOrThrow(id);
 
+        // Đảm bảo thuộc về shop của mình
+        if (!category.getShop().getId().equals(shop.getId())) {
+            throw new AppException(ErrorCode.CATEGORY_NOT_FOUND);
+        }
+
         // Chặn xóa nếu có danh mục con
-        long childCount = categoryRepository.countByParentIdAndIsActiveTrue(id);
+        long childCount = categoryRepository.countByShopIdAndParentIdAndIsActiveTrue(shop.getId(), id);
         if (childCount > 0) {
             throw new AppException(ErrorCode.CATEGORY_HAS_CHILDREN);
         }
@@ -141,7 +187,7 @@ public class CategoryService {
         // Soft delete — không xóa vật lý
         category.setIsActive(false);
         categoryRepository.save(category);
-        log.info("Category {} soft-deleted", id);
+        log.info("Category {} soft-deleted for shop {}", id, shop.getId());
     }
 
     // ─── HELPERS ─────────────────────────────────────────────────────────────
@@ -154,6 +200,7 @@ public class CategoryService {
     private CategoryResponse toResponse(Category c) {
         return CategoryResponse.builder()
                 .id(c.getId())
+                .shopId(c.getShop() != null ? c.getShop().getId() : null)
                 .name(c.getName())
                 .slug(c.getSlug())
                 .description(c.getDescription())
@@ -167,8 +214,8 @@ public class CategoryService {
                 .build();
     }
 
-    // Tạo slug duy nhất từ tên tiếng Việt
-    private String generateUniqueSlug(String name, Long excludeId) {
+    // Tạo slug duy nhất từ tên tiếng Việt cho một shop cụ thể
+    private String generateUniqueSlug(Long shopId, String name, Long excludeId) {
         String base = Normalizer.normalize(name, Normalizer.Form.NFD)
                 .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
                 .toLowerCase().trim()
@@ -179,10 +226,10 @@ public class CategoryService {
         String slug = base;
         int counter = 1;
 
-        // Đảm bảo slug unique
+        // Đảm bảo slug unique trong shop này
         while (excludeId == null
-                ? categoryRepository.existsBySlug(slug)
-                : categoryRepository.existsBySlugAndIdNot(slug, excludeId)) {
+                ? categoryRepository.existsByShopIdAndSlug(shopId, slug)
+                : categoryRepository.existsByShopIdAndSlugAndIdNot(shopId, slug, excludeId)) {
             slug = base + "-" + counter++;
         }
         return slug;

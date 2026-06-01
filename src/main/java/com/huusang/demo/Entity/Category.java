@@ -18,6 +18,8 @@ import java.util.List;
         @Index(name = "idx_category_parent_id", columnList = "parent_id"),
         @Index(name = "idx_category_slug",      columnList = "slug"),
         @Index(name = "idx_category_level",     columnList = "level")
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uk_shop_slug", columnNames = {"shop_id", "slug"})
 })
 public class Category {
 
@@ -28,7 +30,7 @@ public class Category {
     @Column(nullable = false, length = 100)
     String name;
 
-    @Column(nullable = false, unique = true, length = 150)
+    @Column(nullable = false, length = 150)
     String slug;
 
     @Column(length = 500)
@@ -41,6 +43,10 @@ public class Category {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     Category parent;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shop_id")
+    Shop shop;
 
     @OneToMany(mappedBy = "parent", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @Builder.Default
