@@ -121,7 +121,7 @@ public class MessageService {
         validateAccess(conversation, currentUser);
 
         // Đọc lịch sử chat -> Tự động đánh dấu tin nhắn đối phương gửi là đã đọc
-        messageRepository.markAsReadByConversationAndOtherSender(conversation, currentUser);
+        messageRepository.markAsReadByConversationAndOtherSender(conversation, currentUser.getId());
 
         Page<Message> messages = messageRepository.findByConversationOrderByCreatedAtDesc(conversation, pageable);
         return messages.map(this::mapToMessageResponse);
@@ -154,7 +154,7 @@ public class MessageService {
         conversationRepository.save(conversation);
 
         // Đánh dấu các tin nhắn trước đó của đối phương gửi là đã đọc (isRead = true)
-        messageRepository.markAsReadByConversationAndOtherSender(conversation, currentUser);
+        messageRepository.markAsReadByConversationAndOtherSender(conversation, currentUser.getId());
 
         MessageResponse response = mapToMessageResponse(message);
 
@@ -192,7 +192,7 @@ public class MessageService {
 
         validateAccess(conversation, currentUser);
 
-        messageRepository.markAsReadByConversationAndOtherSender(conversation, currentUser);
+        messageRepository.markAsReadByConversationAndOtherSender(conversation, currentUser.getId());
         log.info("Marked conversation id={} as read for user {}", conversation.getId(), currentUser.getEmail());
     }
 
@@ -202,7 +202,7 @@ public class MessageService {
     @Transactional(readOnly = true)
     public long getUnreadCount(String currentUserEmail) {
         User currentUser = resolveUser(currentUserEmail);
-        return messageRepository.countUnreadMessagesForUser(currentUser);
+        return messageRepository.countUnreadMessagesForUser(currentUser.getId());
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -238,7 +238,7 @@ public class MessageService {
                 ? conversation.getSeller().getFullName()
                 : conversation.getSeller().getUsername();
 
-        long unreadCount = messageRepository.countUnreadMessagesForUserInConversation(conversation, currentUser);
+        long unreadCount = messageRepository.countUnreadMessagesForUserInConversation(conversation, currentUser.getId());
 
         return ConversationResponse.builder()
                 .id(conversation.getId())

@@ -58,6 +58,9 @@ public class Product {
     @Column(name = "total_reviews")
     Integer totalReviews = 0;
 
+    @Column(name = "sold_count")
+    Integer soldCount = 0;
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     List<Review> reviews;
 

@@ -68,24 +68,29 @@ INSERT INTO shops (owner_id, shop_name, description, rating, status, created_at)
 -- ============================================================
 -- 4. PRODUCTS + VARIANTS (shop_id 1 = TechZone, 2 = Fashion, 3 = Book)
 -- ============================================================
-INSERT INTO products (shop_id, category_id, product_name, description, price, stock_quantity, image_url, available, created_at) VALUES
+-- Thêm cột sold_count nếu chưa có
+ALTER TABLE products ADD COLUMN IF NOT EXISTS sold_count INT DEFAULT 0;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS average_rating DECIMAL(3,2) DEFAULT 0.00;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS total_reviews INT DEFAULT 0;
+
+INSERT INTO products (shop_id, category_id, product_name, description, price, stock_quantity, image_url, available, sold_count, average_rating, total_reviews, created_at) VALUES
 -- TechZone (shop 1) — Điện thoại
-(1, 6,  'iPhone 15 Pro Max',       'iPhone 15 Pro Max 256GB, chip A17 Pro',         34990000, 50,  NULL, 1, NOW()),
-(1, 6,  'iPhone 14',               'iPhone 14 128GB, màu đen, trắng, đỏ',           22990000, 80,  NULL, 1, NOW()),
-(1, 7,  'Samsung Galaxy S24 Ultra','Samsung S24 Ultra 512GB, bút S-Pen',            29990000, 30,  NULL, 1, NOW()),
-(1, 7,  'Xiaomi 14 Pro',           'Xiaomi 14 Pro 256GB, camera Leica',             18990000, 45,  NULL, 1, NOW()),
-(1, 8,  'ASUS ROG Strix G16',      'Laptop gaming RTX 4070, i9-13900H, 32GB RAM',  45990000, 15,  NULL, 1, NOW()),
-(1, 9,  'MacBook Air M3',          'MacBook Air 15 inch M3, 16GB RAM, 512GB SSD',   38990000, 20,  NULL, 1, NOW()),
+(1, 6,  'iPhone 15 Pro Max',       'iPhone 15 Pro Max 256GB, chip A17 Pro',         34990000, 50,  NULL, 1, 3, 4.67, 3, NOW()),
+(1, 6,  'iPhone 14',               'iPhone 14 128GB, màu đen, trắng, đỏ',           22990000, 80,  NULL, 1, 2, 4.00, 2, NOW()),
+(1, 7,  'Samsung Galaxy S24 Ultra','Samsung S24 Ultra 512GB, bút S-Pen',            29990000, 30,  NULL, 1, 3, 4.67, 3, NOW()),
+(1, 7,  'Xiaomi 14 Pro',           'Xiaomi 14 Pro 256GB, camera Leica',             18990000, 45,  NULL, 1, 0, 0.00, 0, NOW()),
+(1, 8,  'ASUS ROG Strix G16',      'Laptop gaming RTX 4070, i9-13900H, 32GB RAM',  45990000, 15,  NULL, 1, 0, 0.00, 0, NOW()),
+(1, 9,  'MacBook Air M3',          'MacBook Air 15 inch M3, 16GB RAM, 512GB SSD',   38990000, 20,  NULL, 1, 0, 0.00, 0, NOW()),
 -- Fashion Hub (shop 2) — Thời trang
-(2, 10, 'Áo Polo Nam Cao Cấp',     'Áo polo cotton 100%, form slim fit',            450000,   200, NULL, 1, NOW()),
-(2, 10, 'Áo Thun Oversize',        'Áo thun oversize unisex, nhiều màu',            280000,   350, NULL, 1, NOW()),
-(2, 3,  'Quần Jeans Nam Slim',     'Quần jeans nam slim fit, co giãn 4 chiều',      650000,   150, NULL, 1, NOW()),
-(2, 3,  'Váy Maxi Nữ Hoa',        'Váy maxi dài hoa nhí, chất liệu lụa mềm',      520000,   120, NULL, 1, NOW()),
+(2, 10, 'Áo Polo Nam Cao Cấp',     'Áo polo cotton 100%, form slim fit',            450000,   200, NULL, 1, 3, 4.67, 3, NOW()),
+(2, 10, 'Áo Thun Oversize',        'Áo thun oversize unisex, nhiều màu',            280000,   350, NULL, 1, 1, 0.00, 0, NOW()),
+(2, 3,  'Quần Jeans Nam Slim',     'Quần jeans nam slim fit, co giãn 4 chiều',      650000,   150, NULL, 1, 0, 0.00, 0, NOW()),
+(2, 3,  'Váy Maxi Nữ Hoa',        'Váy maxi dài hoa nhí, chất liệu lụa mềm',      520000,   120, NULL, 1, 0, 0.00, 0, NOW()),
 -- Book World (shop 3) — Sách
-(3, 5,  'Đắc Nhân Tâm',           'Dale Carnegie - Nghệ thuật thu phục lòng người', 89000,   500, NULL, 1, NOW()),
-(3, 5,  'Nhà Giả Kim',            'Paulo Coelho - Tiểu thuyết triết học nổi tiếng', 75000,   400, NULL, 1, NOW()),
-(3, 5,  'Atomic Habits',          'James Clear - Thói quen nguyên tử',              95000,   300, NULL, 1, NOW()),
-(3, 5,  'Sapiens',                'Yuval Noah Harari - Lược sử loài người',         120000,  250, NULL, 1, NOW());
+(3, 5,  'Đắc Nhân Tâm',           'Dale Carnegie - Nghệ thuật thu phục lòng người', 89000,   500, NULL, 1, 3, 5.00, 3, NOW()),
+(3, 5,  'Nhà Giả Kim',            'Paulo Coelho - Tiểu thuyết triết học nổi tiếng', 75000,   400, NULL, 1, 1, 0.00, 0, NOW()),
+(3, 5,  'Atomic Habits',          'James Clear - Thói quen nguyên tử',              95000,   300, NULL, 1, 0, 0.00, 0, NOW()),
+(3, 5,  'Sapiens',                'Yuval Noah Harari - Lược sử loài người',         120000,  250, NULL, 1, 0, 0.00, 0, NOW());
 
 -- ============================================================
 -- 5. PRODUCT VARIANTS
@@ -151,6 +156,10 @@ INSERT INTO shopWallets (id, shop_id, balance, total_earned, total_withdrawn) VA
 (UUID(), @shop1, 15500000.00, 45000000.00, 29500000.00),
 (UUID(), @shop2, 8200000.00,  22000000.00, 13800000.00),
 (UUID(), @shop3, 3750000.00,  9500000.00,  5750000.00);
+
+-- Admin Wallet (ví của admin hệ thống)
+INSERT INTO adminWallets (id, balance, total_earned, total_withdrawn) VALUES
+(UUID(), 25000000.00, 150000000.00, 125000000.00);
 
 -- Orders
 INSERT INTO orders (buyer_id, total_amount, discount_amount, final_amount, status, payment_method, created_at) VALUES
@@ -256,9 +265,69 @@ INSERT INTO shop_applications (id, user_id, shop_name, description, tax_code, ta
 (UUID(), 'user-buyer-03', 'Vu Store',       'Shop sách & văn phòng','1122334455', 'Đà Nẵng','Vũ Thị Khách',   'REJECTED', 'Thông tin thuế không hợp lệ', DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 4 DAY));
 
 -- ============================================================
+-- 11. REVIEWS (Đánh giá sản phẩm)
+-- ============================================================
+-- Lấy order_item IDs để gắn với reviews
+SET @oi1 = (SELECT id FROM order_items WHERE shop_order_id = @so1 LIMIT 1);
+SET @oi2 = (SELECT id FROM order_items WHERE shop_order_id = @so2 LIMIT 1);
+SET @oi3 = (SELECT id FROM order_items WHERE shop_order_id = @so3 LIMIT 1);
+SET @oi4 = (SELECT id FROM order_items WHERE shop_order_id = @so4 LIMIT 1);
+SET @oi5 = (SELECT id FROM order_items WHERE shop_order_id = @so5 LIMIT 1);
+
+INSERT INTO reviews (product_id, user_id, order_item_id, rating, comment, verified_purchase, created_at, updated_at) VALUES
+-- iPhone 15 Pro Max (product 1) - review từ user-buyer-01
+(1, 'user-buyer-01', @oi1, 5, 'Sản phẩm tuyệt vời! Màn hình rất sáng, camera chất lượng cực tốt. Giao hàng nhanh chóng, đóng gói cẩn thận. Rất hài lòng với mua hàng lần này.', 1, DATE_SUB(NOW(), INTERVAL 8 DAY), DATE_SUB(NOW(), INTERVAL 8 DAY)),
+
+-- iPhone 14 (product 2) - review từ user-buyer-01
+(2, 'user-buyer-01', @oi2, 4, 'iPhone 14 rất tốt, hiệu năng mạnh, pin dùng được cả ngày. Giá hợp lý so với hiệu năng. Chỉ hơi tiếc là không có sạc trong hộp.', 1, DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 5 DAY)),
+
+-- Samsung Galaxy S24 Ultra (product 3) - review từ user-buyer-02
+(3, 'user-buyer-02', @oi3, 5, 'Siêu phẩm! Màn hình 6.8 inch tuyệt đẹp, camera zoom 100x thực sự ấn tượng. Bút S-Pen rất tiện lợi. Chắc chắn sẽ giới thiệu cho bạn bè.', 1, DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY)),
+
+-- Áo Polo (product 7) - review từ user-buyer-02
+(7, 'user-buyer-02', @oi4, 5, 'Áo polo đẹp lắm, vải cotton 100% mềm mại, form fit vừa vặn. Màu sắc bền, giặt nhiều lần vẫn đẹp như mới. Giá cửa hàng cực kỳ cạnh tranh.', 1, DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY)),
+
+-- Đắc Nhân Tâm (product 11) - review từ user-buyer-03
+(11, 'user-buyer-03', @oi5, 5, 'Cuốn sách kinh điển tuyệt vời! Nội dung sâu sắc, dễ hiểu, rất bổ ích. In ấn chất lượng cao, bìa cứng bền. Sẽ tặng cho bạn và gia đình.', 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY));
+
+-- Thêm reviews từ các user khác cho cùng sản phẩm
+INSERT INTO reviews (id, product_id, user_id, order_item_id, rating, comment, verified_purchase, created_at, updated_at) VALUES
+(101, 1, 'user-buyer-02', NULL, 4, 'iPhone 15 Pro Max rất mạnh, gaming mượt mà. Thiếu cáp USB-C để tặng kèm là điều không tốt.', 0, DATE_SUB(NOW(), INTERVAL 12 DAY), DATE_SUB(NOW(), INTERVAL 12 DAY)),
+(102, 1, 'user-buyer-03', NULL, 5, 'Tôi rất thích sản phẩm này. Giá hơi cao nhưng chất lượng xứng đáng. Khuyến khích mọi người mua!', 0, DATE_SUB(NOW(), INTERVAL 10 DAY), DATE_SUB(NOW(), INTERVAL 10 DAY)),
+(103, 2, 'user-buyer-02', NULL, 4, 'iPhone 14 tốt, nhưng Pin không thì êm như iPhone 15. Nhưng giá rẻ hơn nhiều.', 0, DATE_SUB(NOW(), INTERVAL 9 DAY), DATE_SUB(NOW(), INTERVAL 9 DAY)),
+(104, 3, 'user-buyer-01', NULL, 5, 'Samsung S24 Ultra vượt trội! Camera thực sự là đỉnh cao công nghệ smartphone hiện nay.', 0, DATE_SUB(NOW(), INTERVAL 6 DAY), DATE_SUB(NOW(), INTERVAL 6 DAY)),
+(105, 3, 'user-buyer-03', NULL, 4, 'Điện thoại chất lượng cao, giá hợp lý. Giao hàng nhanh từ shop TechZone.', 0, DATE_SUB(NOW(), INTERVAL 4 DAY), DATE_SUB(NOW(), INTERVAL 4 DAY)),
+(106, 7, 'user-buyer-01', NULL, 5, 'Áo polo rất đẹp, mặc thoải mái cả ngày. Form fit chuẩn, không bị co rút sau giặt.', 0, DATE_SUB(NOW(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 3 DAY)),
+(107, 7, 'user-buyer-03', NULL, 4, 'Chất lượng tốt, giá phải chăng. Chỉ hơi hẹp một chút ở vai.', 0, DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(108, 11, 'user-buyer-01', NULL, 5, 'Đắc Nhân Tâm là cuốn sách mọi người nên đọc. Nó thay đổi cách tôi nhìn nhân tạo.', 0, DATE_SUB(NOW(), INTERVAL 8 DAY), DATE_SUB(NOW(), INTERVAL 8 DAY)),
+(109, 11, 'user-buyer-02', NULL, 5, 'Sách hay, in đẹp, chứa đựng rất nhiều bài học quý báu.', 0, DATE_SUB(NOW(), INTERVAL 7 DAY), DATE_SUB(NOW(), INTERVAL 7 DAY));
+
+-- ============================================================
 -- RE-ENABLE FOREIGN KEY CHECKS
 -- ============================================================
 SET FOREIGN_KEY_CHECKS=1;
+
+-- ============================================================
+-- CẬP NHẬT AVERAGE_RATING VÀ TOTAL_REVIEWS CHO PRODUCTS
+-- ============================================================
+UPDATE products p
+SET 
+    total_reviews = (SELECT COUNT(*) FROM reviews r WHERE r.product_id = p.id),
+    average_rating = COALESCE((SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.id), 0);
+
+-- ============================================================
+-- CẬP NHẬT SOLD_COUNT DỰA TRÊN ORDER_ITEMS (CHỈ ĐƠN DELIVERED/COMPLETED)
+-- ============================================================
+UPDATE products p
+SET sold_count = COALESCE((
+    SELECT SUM(oi.quantity)
+    FROM order_items oi
+    JOIN shop_orders so ON oi.shop_order_id = so.id
+    WHERE oi.product_variant_id IN (
+        SELECT pv.id FROM product_variants pv WHERE pv.product_id = p.id
+    )
+    AND so.status IN ('DELIVERED', 'COMPLETED')
+), 0);
 
 -- ============================================================
 -- DONE — Kiểm tra dữ liệu
@@ -274,4 +343,5 @@ UNION ALL SELECT 'OrderItems',  COUNT(*) FROM order_items
 UNION ALL SELECT 'Vouchers',    COUNT(*) FROM vouchers
 UNION ALL SELECT 'Disputes',    COUNT(*) FROM disputes
 UNION ALL SELECT 'Withdrawals', COUNT(*) FROM withdrawals
-UNION ALL SELECT 'ShopApps',    COUNT(*) FROM shop_applications;
+UNION ALL SELECT 'ShopApps',    COUNT(*) FROM shop_applications
+UNION ALL SELECT 'Reviews',     COUNT(*) FROM reviews;
