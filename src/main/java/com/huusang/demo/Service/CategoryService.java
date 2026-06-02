@@ -28,31 +28,47 @@ public class CategoryService {
     // Load toàn bộ 1 query, build tree in-memory → tránh N+1
     @Transactional(readOnly = true)
     public List<CategoryResponse> getCategoryTree() {
-        List<Category> all = categoryRepository.findAllActiveOrderedByLevelAndSort();
+        try {
+            log.info("🌳 Building category tree...");
+            List<Category> all = categoryRepository.findAllActiveOrderedByLevelAndSort();
+            log.info("📊 Found {} categories in database", all.size());
 
-        Map<Long, CategoryResponse> nodeMap = new LinkedHashMap<>();
-        List<CategoryResponse> roots = new ArrayList<>();
+            Map<Long, CategoryResponse> nodeMap = new LinkedHashMap<>();
+            List<CategoryResponse> roots = new ArrayList<>();
 
-        // Pass 1: tạo tất cả node
-        for (Category c : all) {
-            CategoryResponse dto = toResponse(c);
-            dto.setChildren(new ArrayList<>());
-            nodeMap.put(c.getId(), dto);
-        }
+            // Pass 1: tạo tất cả node
+            for (Category c : all) {
+                CategoryResponse dto = toResponse(c);
+                dto.setChildren(new ArrayList<>());
+                nodeMap.put(c.getId(), dto);
+                log.debug("📄 Created node for category: {} (ID: {}, Level: {})", c.getName(), c.getId(), c.getLevel());
+            }
 
-        // Pass 2: gắn children vào đúng parent
-        for (Category c : all) {
-            CategoryResponse dto = nodeMap.get(c.getId());
-            if (c.getParent() == null) {
-                roots.add(dto);
-            } else {
-                CategoryResponse parentDto = nodeMap.get(c.getParent().getId());
-                if (parentDto != null) {
-                    parentDto.getChildren().add(dto);
+            // Pass 2: gắn children vào đúng parent
+            for (Category c : all) {
+                CategoryResponse dto = nodeMap.get(c.getId());
+                if (c.getParent() == null) {
+                    roots.add(dto);
+                    log.debug("🌟 Root category: {} (ID: {})", c.getName(), c.getId());
+                } else {
+                    Long parentId = c.getParent().getId();
+                    CategoryResponse parentDto = nodeMap.get(parentId);
+                    if (parentDto != null) {
+                        parentDto.getChildren().add(dto);
+                        log.debug("🔗 Added {} (ID: {}) as child of parent ID: {}", c.getName(), c.getId(), parentId);
+                    } else {
+                        log.warn("⚠️ Parent not found in nodeMap for category: {} (ID: {}, Parent ID: {})", 
+                            c.getName(), c.getId(), parentId);
+                    }
                 }
             }
+            
+            log.info("✅ Category tree built successfully. {} root categories, {} total categories", roots.size(), nodeMap.size());
+            return roots;
+        } catch (Exception e) {
+            log.error("❌ Error building category tree: {}", e.getMessage(), e);
+            throw new AppException(ErrorCode.CATEGORY_NOT_FOUND);
         }
-        return roots;
     }
 
     // ─── GET BY ID ───────────────────────────────────────────────────────────
@@ -149,6 +165,25 @@ public class CategoryService {
         return categoryRepository.findById(id)
                 .filter(c -> Boolean.TRUE.equals(c.getIsActive()))
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+    }
+
+    // ─── Helper: Count all categories ────────────────────────────────────────
+    public long countAllCategories() {
+        return categoryRepository.count();
+    }
+
+    // ─── Helper: Get all categories flat (no tree) ───────────────────────────
+    public List<CategoryResponse> getAllCategoriesFlat() {
+        try {
+            List<Category> all = categoryRepository.findAllActiveOrderedByLevelAndSort();
+            log.info("📊 Found {} active categories", all.size());
+            return all.stream()
+                    .map(this::toResponse)
+                    .toList();
+        } catch (Exception e) {
+            log.error("❌ Error fetching categories: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
     }
 
     private CategoryResponse toResponse(Category c) {

@@ -49,9 +49,10 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(request -> request
                         .requestMatchers("/users/register", "auth/**").permitAll()
-                        // Category tree public — ai cũng xem được
-                        .requestMatchers("/api/v1/categories/tree").permitAll()
-                        .requestMatchers("/api/v1/categories/{id}").permitAll()
+                        // Category endpoints public
+                        .requestMatchers("/api/v1/categories/**").permitAll()
+                        // Product public endpoints
+                        .requestMatchers("GET", "/api/v1/products/**").permitAll()
                         // SePay webhook — gọi từ server SePay, không có JWT user
                         .requestMatchers("/api/v1/payments/sepay/webhook").permitAll()
                         // Thông tin public của shop — khách xem không cần đăng nhập

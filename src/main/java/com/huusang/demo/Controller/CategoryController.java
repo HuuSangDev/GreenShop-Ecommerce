@@ -30,6 +30,33 @@ public class CategoryController {
                 .build();
     }
 
+    // GET /api/v1/categories/test - Debug endpoint
+    @GetMapping("/test")  
+    public ApiResponse<String> testEndpoint() {
+        return ApiResponse.<String>builder()
+                .result("Categories endpoint is working!")
+                .message("Test successful")
+                .build();
+    }
+
+    // GET /api/v1/categories/count - Count categories
+    @GetMapping("/count")
+    public ApiResponse<Long> countCategories() {
+        long count = categoryService.countAllCategories();
+        return ApiResponse.<Long>builder()
+                .result(count)
+                .message("Total categories: " + count)
+                .build();
+    }
+
+    // GET /api/v1/categories/all - Get all without tree structure
+    @GetMapping("/all")
+    public ApiResponse<List<CategoryResponse>> getAllCategories() {
+        return ApiResponse.<List<CategoryResponse>>builder()
+                .result(categoryService.getAllCategoriesFlat())
+                .build();
+    }
+
     // GET /api/v1/categories/{id}
     @GetMapping("/{id}")
     public ApiResponse<CategoryResponse> getCategoryById(@PathVariable Long id) {

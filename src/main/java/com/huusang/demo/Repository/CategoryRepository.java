@@ -47,7 +47,7 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     long countByParentIdAndIsActiveTrue(Long parentId);
 
     // Load toàn bộ cây 1 lần — build tree in-memory, tránh N+1
-    @Query("SELECT c FROM Category c WHERE c.isActive = true ORDER BY c.level ASC, c.sortOrder ASC")
+    @Query("SELECT c FROM Category c LEFT JOIN FETCH c.parent WHERE c.isActive = true ORDER BY c.level ASC, c.sortOrder ASC")
     List<Category> findAllActiveOrderedByLevelAndSort();
 
     // Kiểm tra slug trùng
