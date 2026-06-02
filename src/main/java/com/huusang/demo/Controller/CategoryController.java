@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/categories")
+@RequestMapping("/categories")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class CategoryController {
@@ -66,9 +66,9 @@ public class CategoryController {
     }
 
     // POST /api/v1/categories
-    // Chỉ ADMIN mới tạo được
+    // Chỉ ADMIN và SELLER mới tạo được
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SELLER')")
     public ApiResponse<CategoryResponse> createCategory(
             @Valid @RequestBody CategoryRequest request) {
         return ApiResponse.<CategoryResponse>builder()
@@ -80,7 +80,7 @@ public class CategoryController {
 
     // PUT /api/v1/categories/{id}
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SELLER')")
     public ApiResponse<CategoryResponse> updateCategory(
             @PathVariable Long id,
             @Valid @RequestBody CategoryRequest request) {
@@ -92,7 +92,7 @@ public class CategoryController {
 
     // DELETE /api/v1/categories/{id}
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SELLER')")
     public ApiResponse<Void> deleteCategory(@PathVariable Long id) {
         categoryService.deleteCategory(id);
         return ApiResponse.<Void>builder()

@@ -17,12 +17,12 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     Page<Message> findByConversationOrderByCreatedAtDesc(Conversation conversation, Pageable pageable);
 
     @Modifying
-    @Query("UPDATE Message m SET m.isRead = true WHERE m.conversation = :conversation AND m.sender != :currentUser AND m.isRead = false")
-    void markAsReadByConversationAndOtherSender(@Param("conversation") Conversation conversation, @Param("currentUser") User currentUser);
+    @Query("UPDATE Message m SET m.isRead = true WHERE m.conversation = :conversation AND m.sender.id != :currentUserId AND m.isRead = false")
+    void markAsReadByConversationAndOtherSender(@Param("conversation") Conversation conversation, @Param("currentUserId") String currentUserId);
 
-    @Query("SELECT COUNT(m) FROM Message m WHERE (m.conversation.buyer = :currentUser OR m.conversation.seller = :currentUser) AND m.sender != :currentUser AND m.isRead = false")
-    long countUnreadMessagesForUser(@Param("currentUser") User currentUser);
+    @Query("SELECT COUNT(m) FROM Message m WHERE (m.conversation.buyer.id = :currentUserId OR m.conversation.seller.id = :currentUserId) AND m.sender.id != :currentUserId AND m.isRead = false")
+    long countUnreadMessagesForUser(@Param("currentUserId") String currentUserId);
 
-    @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation = :conversation AND m.sender != :currentUser AND m.isRead = false")
-    long countUnreadMessagesForUserInConversation(@Param("conversation") Conversation conversation, @Param("currentUser") User currentUser);
+    @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation = :conversation AND m.sender.id != :currentUserId AND m.isRead = false")
+    long countUnreadMessagesForUserInConversation(@Param("conversation") Conversation conversation, @Param("currentUserId") String currentUserId);
 }

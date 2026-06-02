@@ -59,7 +59,8 @@ public class DatabaseInitializer implements ApplicationRunner {
                 {"MANAGE_USER", "Quản lý tài khoản"},
                 {"VERIFY_SELLER", "Duyệt gian hàng"},
                 {"MANAGE_CATEGORY", "Quản lý danh mục"},
-                {"MODERATE_PRODUCT", "Kiểm duyệt sản phẩm vi phạm"}
+                {"MODERATE_PRODUCT", "Kiểm duyệt sản phẩm vi phạm"},
+                {"MANAGE_SYSTEM", "Quản lý toàn hệ thống"}
         };
 
         for (String[] p : allPermissions) {
@@ -101,7 +102,7 @@ public class DatabaseInitializer implements ApplicationRunner {
                     .build();
 
             // 3. Phân loại quyền cho ADMIN
-            List<String> adminPermNames = List.of("MANAGE_USER", "VERIFY_SELLER", "MANAGE_CATEGORY", "MODERATE_PRODUCT");
+            List<String> adminPermNames = List.of("MANAGE_USER", "VERIFY_SELLER", "MANAGE_CATEGORY", "MODERATE_PRODUCT", "MANAGE_SYSTEM");
             Set<Permission> adminPerms = new HashSet<>(permissionRepository.findAllById(adminPermNames));
 
             Role adminRole = Role.builder()

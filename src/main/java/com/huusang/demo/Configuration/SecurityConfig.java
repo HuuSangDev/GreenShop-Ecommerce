@@ -50,17 +50,17 @@ public class SecurityConfig {
                 .authorizeHttpRequests(request -> request
                         .requestMatchers("/users/register", "auth/**").permitAll()
                         // Category endpoints public
-                        .requestMatchers("/api/v1/categories/**").permitAll()
+                        .requestMatchers("/categories/**").permitAll()
                         // Product public endpoints
-                        .requestMatchers("GET", "/api/v1/products/**").permitAll()
+                        .requestMatchers("GET", "/products/**").permitAll()
                         // SePay webhook — gọi từ server SePay, không có JWT user
-                        .requestMatchers("/api/v1/payments/sepay/webhook").permitAll()
+                        .requestMatchers("/payments/sepay/webhook").permitAll()
                         // Thông tin public của shop — khách xem không cần đăng nhập
-                        .requestMatchers("GET", "/api/v1/shops/{id}").permitAll()
+                        .requestMatchers("GET", "/shops/{id}").permitAll()
                         // Ảnh tĩnh local — phục vụ qua /images/**, không cần JWT
                         .requestMatchers("/images/**").permitAll()
                         // Shipping test endpoint — không cần JWT để dễ test
-                        .requestMatchers("/api/v1/shipping/test-checkout").permitAll()
+                        .requestMatchers("/shipping/test-checkout").permitAll()
                         // WebSocket handshake — JWT được validate trong WebSocketConfig
                         .requestMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated());

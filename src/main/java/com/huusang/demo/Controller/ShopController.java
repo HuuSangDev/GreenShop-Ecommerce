@@ -5,6 +5,7 @@ import com.huusang.demo.Dto.Request.*;
 import com.huusang.demo.Dto.Response.*;
 import com.huusang.demo.Enum.ShopApplicationStatus;
 import com.huusang.demo.Enum.ShopStatus;
+import com.huusang.demo.Enum.ShopApplicationStatus;
 import com.huusang.demo.Service.ShopService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
