@@ -86,7 +86,7 @@ public class VoucherController {
 
     @GetMapping("/available")
     public ApiResponse<List<VoucherResponse>> getAvailableVouchers(
-            @RequestParam BigDecimal orderAmount,
+            @RequestParam(required = false) BigDecimal orderAmount,
             @RequestParam(required = false) Long shopId) {
 
         return ApiResponse.<List<VoucherResponse>>builder()

@@ -34,6 +34,8 @@ public class ReviewService {
     ProductRepository productRepository;
     UserRepository userRepository;
     ShopRepository shopRepository;
+    ReviewImageRepository reviewImageRepository;
+    FileStorageService fileStorageService;
 
     // ─── CREATE ───────────────────────────────────────────────────────────────
     @Transactional
@@ -46,9 +48,9 @@ public class ReviewService {
             throw new AppException(ErrorCode.ORDER_CART_ITEM_NOT_OWNED);
         }
 
-        // Validate Order status = DELIVERED
+        // Validate Order status = DELIVERED or COMPLETED
         Order order = orderItem.getShopOrder().getOrder();
-        if (order.getStatus() != OrderStatus.DELIVERED) {
+        if (order.getStatus() != OrderStatus.DELIVERED && order.getStatus() != OrderStatus.COMPLETED) {
             throw new AppException(ErrorCode.REVIEW_ORDER_NOT_DELIVERED);
         }
 
@@ -69,10 +71,29 @@ public class ReviewService {
                 .build();
 
         reviewRepository.save(review);
+
+        // Upload images nếu có
+        if (request.getImages() != null && !request.getImages().isEmpty()) {
+            for (int i = 0; i < request.getImages().size() && i < 5; i++) {
+                try {
+                    String relativePath = fileStorageService.storeFile(request.getImages().get(i), "reviews");
+                    ReviewImage reviewImage = ReviewImage.builder()
+                            .review(review)
+                            .imageUrl(relativePath)
+                            .build();
+                    reviewImageRepository.save(reviewImage);
+                } catch (Exception e) {
+                    log.warn("Failed to upload review image: {}", e.getMessage());
+                    // Tiếp tục với image khác, không fail entire review
+                }
+            }
+        }
+
         updateProductRating(product.getId());
 
-        log.info("Review created: reviewId={}, productId={}, userId={}, rating={}",
-                review.getId(), product.getId(), user.getId(), request.getRating());
+        log.info("Review created: reviewId={}, productId={}, userId={}, rating={}, images={}",
+                review.getId(), product.getId(), user.getId(), request.getRating(),
+                request.getImages() != null ? request.getImages().size() : 0);
 
         return toReviewResponse(review);
     }
@@ -279,6 +300,10 @@ public class ReviewService {
     }
 
     private ReviewResponse toReviewResponse(Review review) {
+        List<String> imageUrls = review.getImages() != null 
+            ? review.getImages().stream().map(ReviewImage::getImageUrl).toList()
+            : List.of();
+        
         return ReviewResponse.builder()
                 .id(review.getId())
                 .productId(review.getProduct().getId())
@@ -289,6 +314,7 @@ public class ReviewService {
                 .userAvatar(null) // Add avatar field to User if needed
                 .rating(review.getRating())
                 .comment(review.getComment())
+                .reviewImages(imageUrls)
                 .verifiedPurchase(review.isVerifiedPurchase())
                 .createdAt(review.getCreatedAt())
                 .updatedAt(review.getUpdatedAt())

@@ -5,6 +5,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Data
@@ -44,6 +45,9 @@ public class Review {
     @Column(name = "verified_purchase")
     boolean verifiedPurchase = true;
 
+    @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
+    List<ReviewImage> images;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     LocalDateTime createdAt;
 
@@ -61,3 +65,4 @@ public class Review {
         this.updatedAt = LocalDateTime.now();
     }
 }
+

@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -31,11 +32,21 @@ public class ReviewController {
     ReviewService reviewService;
 
     // ─── CREATE REVIEW ────────────────────────────────────────────────────────
-    @PostMapping("/reviews")
+    @PostMapping(value = "/reviews", consumes = "multipart/form-data")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ReviewResponse> createReview(
             @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody CreateReviewRequest request) {
+            @RequestParam Long orderItemId,
+            @RequestParam Integer rating,
+            @RequestParam(required = false) String comment,
+            @RequestParam(value = "images", required = false) List<MultipartFile> images) {
+
+        CreateReviewRequest request = CreateReviewRequest.builder()
+                .orderItemId(orderItemId)
+                .rating(rating)
+                .comment(comment)
+                .images(images)
+                .build();
 
         ReviewResponse review = reviewService.createReview(getUserEmail(jwt), request);
 
