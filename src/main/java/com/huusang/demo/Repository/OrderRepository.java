@@ -15,4 +15,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // Lấy đơn hàng theo trạng thái
     List<Order> findByBuyer_IdAndStatusOrderByCreatedAtDesc(String buyerId, OrderStatus status);
+
+    // Admin: Lấy tất cả đơn hàng
+    List<Order> findAllByOrderByCreatedAtDesc();
+
+    // Admin: Lấy đơn hàng theo trạng thái
+    List<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status);
 }

@@ -36,6 +36,7 @@ public class ShopOrder {
     private User user;
 
     // Trạng thái độc lập của gói hàng (Shop A đang giao, Shop B có thể đã hủy)
+    @Enumerated(EnumType.STRING)
     OrderStatus status; // PENDING, PREPARING, SHIPPING, DELIVERED, CANCELLED
 
     // Tiền ship riêng của gói hàng này

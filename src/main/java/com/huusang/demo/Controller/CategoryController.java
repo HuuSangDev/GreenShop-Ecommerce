@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/categories")
+@RequestMapping("/categories")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class CategoryController {
@@ -27,6 +27,33 @@ public class CategoryController {
     public ApiResponse<List<CategoryResponse>> getCategoryTree() {
         return ApiResponse.<List<CategoryResponse>>builder()
                 .result(categoryService.getCategoryTree())
+                .build();
+    }
+
+    // GET /api/v1/categories/test - Debug endpoint
+    @GetMapping("/test")  
+    public ApiResponse<String> testEndpoint() {
+        return ApiResponse.<String>builder()
+                .result("Categories endpoint is working!")
+                .message("Test successful")
+                .build();
+    }
+
+    // GET /api/v1/categories/count - Count categories
+    @GetMapping("/count")
+    public ApiResponse<Long> countCategories() {
+        long count = categoryService.countAllCategories();
+        return ApiResponse.<Long>builder()
+                .result(count)
+                .message("Total categories: " + count)
+                .build();
+    }
+
+    // GET /api/v1/categories/all - Get all without tree structure
+    @GetMapping("/all")
+    public ApiResponse<List<CategoryResponse>> getAllCategories() {
+        return ApiResponse.<List<CategoryResponse>>builder()
+                .result(categoryService.getAllCategoriesFlat())
                 .build();
     }
 

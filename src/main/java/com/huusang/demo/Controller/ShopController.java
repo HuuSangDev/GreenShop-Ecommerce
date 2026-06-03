@@ -3,6 +3,7 @@ package com.huusang.demo.Controller;
 import com.huusang.demo.Dto.ApiResponse;
 import com.huusang.demo.Dto.Request.*;
 import com.huusang.demo.Dto.Response.*;
+import com.huusang.demo.Enum.ShopApplicationStatus;
 import com.huusang.demo.Enum.ShopStatus;
 import com.huusang.demo.Enum.ShopApplicationStatus;
 import com.huusang.demo.Service.ShopService;

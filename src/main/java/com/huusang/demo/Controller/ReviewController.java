@@ -25,7 +25,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
-@RequestMapping("/api/v1")
+@RequestMapping("/users")
 public class ReviewController {
 
     ReviewService reviewService;

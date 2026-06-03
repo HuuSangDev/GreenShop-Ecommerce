@@ -106,4 +106,26 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
+
+    // ─── Handle AppException ──────────────────────────────────────────────────────
+    @ExceptionHandler(AppException.class)
+    public ResponseEntity<ErrorResponse> handleAppException(AppException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        
+        // Map error codes to HTTP status
+        HttpStatus status = HttpStatus.BAD_REQUEST; // default
+        if (errorCode.getCode() >= 400 && errorCode.getCode() < 500) {
+            status = HttpStatus.NOT_FOUND;
+        } else if (errorCode.getCode() >= 100 && errorCode.getCode() < 400) {
+            status = HttpStatus.BAD_REQUEST;
+        }
+        
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(status.value())
+                .error(status.getReasonPhrase())
+                .message(errorCode.getMessage())
+                .build();
+        return ResponseEntity.status(status).body(error);
+    }
 }

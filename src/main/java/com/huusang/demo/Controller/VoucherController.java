@@ -95,6 +95,17 @@ public class VoucherController {
                 .build();
     }
 
+    // ==================== ADMIN ====================
+
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<List<VoucherResponse>> getAllVouchersForAdmin() {
+        return ApiResponse.<List<VoucherResponse>>builder()
+                .message("Danh sách tất cả voucher")
+                .result(voucherService.getAllVouchers())
+                .build();
+    }
+
     @PostMapping("/apply")
     public ApiResponse<ApplyVoucherResponse> applyVoucher(
             @Valid @RequestBody ApplyVoucherRequest request) {
