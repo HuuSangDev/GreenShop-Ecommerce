@@ -33,6 +33,7 @@ public class ShopService {
     WithdrawalRepository withdrawalRepository;
     RoleRepository roleRepository;
     OrderItemRepository orderItemRepository;
+    PaymentRepository paymentRepository;
 
     // ─────────────────────────────────────────────────────────────────────────
     //  SHOP APPLICATION (Đăng ký mở gian hàng)
@@ -293,6 +294,37 @@ public class ShopService {
         Shop shop = getShopByOwnerEmail(userEmail);
         return withdrawalRepository.findByShopIdOrderByRequestedAtDesc(shop.getId())
                 .stream().map(this::toWithdrawalResponse).collect(Collectors.toList());
+    }
+
+    /**
+     * SELLER: Lấy danh sách các khoản thanh toán đơn hàng (doanh thu) liên quan đến shop.
+     */
+    public List<PaymentResponse> getPayments(String userEmail) {
+        Shop shop = getShopByOwnerEmail(userEmail);
+        List<Payment> payments = paymentRepository.findByShopId(shop.getId());
+        
+        return payments.stream().map(p -> {
+            BigDecimal shopAmount = BigDecimal.ZERO;
+            if (p.getOrder() != null && p.getOrder().getShopOrders() != null) {
+                shopAmount = p.getOrder().getShopOrders().stream()
+                        .filter(so -> so.getShop().getId().equals(shop.getId()))
+                        .map(so -> so.getShopTotalAmount().add(so.getShippingFee() != null ? so.getShippingFee() : BigDecimal.ZERO))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            }
+            
+            return PaymentResponse.builder()
+                    .id(p.getId())
+                    .orderId(p.getOrder() != null ? p.getOrder().getId() : null)
+                    .transactionId(p.getTransactionId())
+                    .transactionRef(p.getTransactionRef())
+                    .method(p.getMethod() != null ? p.getMethod().name() : null)
+                    .status(p.getStatus() != null ? p.getStatus().name() : null)
+                    .amount(p.getAmount())
+                    .shopAmount(shopAmount)
+                    .createdAt(p.getCreatedAt())
+                    .paidAt(p.getPaidAt())
+                    .build();
+        }).collect(Collectors.toList());
     }
 
     /**

@@ -245,6 +245,23 @@ public class ShopController {
     }
 
     /**
+     * GET /shops/me/payments
+     * Lịch sử thanh toán đơn hàng (doanh thu) của shop.
+     * Quyền: SELLER
+     */
+    @GetMapping("/me/payments")
+    @PreAuthorize("hasRole('SELLER')")
+    public ApiResponse<List<PaymentResponse>> getPayments(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        List<PaymentResponse> payments = shopService.getPayments(getEmail(jwt));
+        return ApiResponse.<List<PaymentResponse>>builder()
+                .message("Lịch sử thanh toán")
+                .result(payments)
+                .build();
+    }
+
+    /**
      * PUT /shops/withdrawals/{id}/process
      * Admin duyệt hoặc từ chối yêu cầu rút tiền.
      * Quyền: ADMIN
