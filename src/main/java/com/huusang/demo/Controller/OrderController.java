@@ -152,6 +152,26 @@ public class OrderController {
                 .build();
     }
 
+    // ─── CANCEL ORDER ─────────────────────────────────────────────────────────────
+    /**
+     * PUT /api/v1/orders/{orderId}/cancel
+     * Buyer hủy đơn hàng của mình.
+     * Chỉ cho phép hủy khi: PENDING, PAID, PENDING_PAYMENT
+     */
+    @PutMapping("/api/v1/orders/{orderId}/cancel")
+    public ApiResponse<OrderResponse> cancelOrder(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long orderId) {
+
+        OrderResponse order = orderService.cancelOrder(getUserEmail(jwt), orderId);
+
+        return ApiResponse.<OrderResponse>builder()
+                .code(200)
+                .message("Đơn hàng đã được hủy thành công")
+                .result(order)
+                .build();
+    }
+
     // ─── HELPER ──────────────────────────────────────────────────────────────────
     // JWT subject là email — giống convention CartController
     private String getUserEmail(Jwt jwt) {

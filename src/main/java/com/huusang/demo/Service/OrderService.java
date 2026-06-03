@@ -439,6 +439,96 @@ public class OrderService {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // CANCEL ORDER (BUYER)
+    // PUT /api/v1/orders/{orderId}/cancel
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Buyer hủy đơn hàng của mình.
+     * - Chỉ cho phép hủy khi: PENDING, PAID, PENDING_PAYMENT
+     * - Khi hủy: cập nhật tất cả ShopOrder liên quan sang CANCELLED
+     * - Hoàn lại stock cho các sản phẩm (nếu đã trừ stock)
+     */
+    @Transactional
+    public OrderResponse cancelOrder(String userEmail, Long orderId) {
+        User buyer = resolveUser(userEmail);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        // Kiểm tra quyền sở hữu
+        if (!order.getBuyer().getId().equals(buyer.getId())) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        // Kiểm tra trạng thái có thể hủy
+        if (!canBuyerCancelOrder(order.getStatus())) {
+            throw new AppException(ErrorCode.ORDER_CANNOT_BE_CANCELLED);
+        }
+
+        // Cập nhật trạng thái Order chính
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+
+        // Cập nhật tất cả ShopOrder liên quan
+        if (order.getShopOrders() != null) {
+            order.getShopOrders().forEach(shopOrder -> {
+                if (shopOrder.getStatus() != OrderStatus.CANCELLED) {
+                    shopOrder.setStatus(OrderStatus.CANCELLED);
+                    shopOrderRepository.save(shopOrder);
+                }
+            });
+        }
+
+        // Hoàn lại stock (nếu đã trừ stock từ trước)
+        if (order.getStatus() != OrderStatus.PENDING_PAYMENT) {
+            restoreStock(order);
+        }
+
+        log.info("Buyer {} đã hủy Order #{}", userEmail, orderId);
+
+        // Trả về OrderResponse đơn giản
+        return OrderResponse.builder()
+                .orderId(order.getId())
+                .status(order.getStatus())
+                .paymentMethod(PaymentMethod.valueOf(order.getPaymentMethod()))
+                .totalAmount(order.getTotalAmount())
+                .discountAmount(order.getDiscountAmount())
+                .finalAmount(order.getFinalAmount())
+                .createdAt(order.getCreatedAt())
+                .build();
+    }
+
+    /**
+     * Kiểm tra buyer có thể hủy đơn không.
+     * Chỉ cho phép hủy: PENDING, PAID, PENDING_PAYMENT
+     */
+    private boolean canBuyerCancelOrder(OrderStatus status) {
+        return status == OrderStatus.PENDING
+                || status == OrderStatus.PAID
+                || status == OrderStatus.PENDING_PAYMENT;
+    }
+
+    /**
+     * Hoàn lại stock cho các sản phẩm trong đơn hàng.
+     */
+    private void restoreStock(Order order) {
+        if (order.getShopOrders() == null) return;
+
+        order.getShopOrders().forEach(shopOrder -> {
+            if (shopOrder.getOrderItems() == null) return;
+
+            shopOrder.getOrderItems().forEach(item -> {
+                ProductVariant variant = item.getProductVariant();
+                int restoreQty = item.getQuantity();
+                variant.setStockQuantity(variant.getStockQuantity() + restoreQty);
+                variantRepository.save(variant);
+                log.info("Hoàn lại {} stock cho variant #{}", restoreQty, variant.getId());
+            });
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // STEP 2 — SEPAY WEBHOOK CALLBACK
     // POST /api/v1/payments/sepay/webhook  (public, không cần JWT)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -600,6 +690,7 @@ public class OrderService {
 
     /**
      * Tạo ShopOrder + OrderItem cho từng shop kèm shippingFee thật.
+     * Phân bổ discount (voucher) theo tỷ lệ tiền hàng của từng shop.
      * COD: deduct stock ngay.
      * SEPAY: KHÔNG deduct stock — chờ webhook.
      */
@@ -609,16 +700,37 @@ public class OrderService {
                                                      PaymentMethod paymentMethod) {
         List<ShopOrderResponse> responses = new ArrayList<>();
 
+        // ── Tính tổng tiền hàng gốc toàn đơn (dùng để phân bổ discount) ──────
+        BigDecimal grandTotal = itemsByShop.values().stream()
+                .flatMap(List::stream)
+                .map(item -> item.getProductVariant().getPrice()
+                        .multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalDiscount = savedOrder.getDiscountAmount() != null
+                ? savedOrder.getDiscountAmount() : BigDecimal.ZERO;
+
         for (Map.Entry<Shop, List<CartItem>> entry : itemsByShop.entrySet()) {
             Shop shop = entry.getKey();
             List<CartItem> shopItems = entry.getValue();
 
-            BigDecimal shopTotal = shopItems.stream()
+            // Tiền hàng gốc của shop này
+            BigDecimal shopGross = shopItems.stream()
                     .map(item -> item.getProductVariant().getPrice()
                             .multiply(BigDecimal.valueOf(item.getQuantity())))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            // Lấy phí ship thật của shop này
+            // Phân bổ discount theo tỷ lệ: shopDiscount = totalDiscount * (shopGross / grandTotal)
+            BigDecimal shopDiscount = BigDecimal.ZERO;
+            if (grandTotal.compareTo(BigDecimal.ZERO) > 0 && totalDiscount.compareTo(BigDecimal.ZERO) > 0) {
+                shopDiscount = totalDiscount
+                        .multiply(shopGross)
+                        .divide(grandTotal, 2, java.math.RoundingMode.HALF_UP);
+            }
+
+            // shopTotalAmount = tiền hàng gốc - phần discount được phân bổ
+            BigDecimal shopTotal = shopGross.subtract(shopDiscount).max(BigDecimal.ZERO);
+
             BigDecimal shopShippingFee = shippingFeeByShop.getOrDefault(shop, BigDecimal.ZERO);
 
             OrderStatus shopOrderStatus = (paymentMethod == PaymentMethod.COD)
@@ -629,12 +741,12 @@ public class OrderService {
                     .order(savedOrder)
                     .shop(shop)
                     .status(shopOrderStatus)
-                    .shopTotalAmount(shopTotal)
-                    .shippingFee(shopShippingFee)   // ← lưu phí ship thật, không ZERO
+                    .shopTotalAmount(shopTotal)     // ← đã trừ discount phân bổ
+                    .shippingFee(shopShippingFee)
                     .build());
 
-            log.info("ShopOrder created: id={}, shopId={}, goods={}, ship={}, method={}",
-                    savedShopOrder.getId(), shop.getId(), shopTotal, shopShippingFee, paymentMethod);
+            log.info("ShopOrder created: id={}, shopId={}, gross={}, discount={}, net={}, ship={}, method={}",
+                    savedShopOrder.getId(), shop.getId(), shopGross, shopDiscount, shopTotal, shopShippingFee, paymentMethod);
 
             List<OrderItemResponse> itemResponses = new ArrayList<>();
 
@@ -643,15 +755,23 @@ public class OrderService {
                 BigDecimal priceAtBuy = variant.getPrice();
                 int qty = item.getQuantity();
 
+                // Phân bổ discount xuống từng item theo tỷ lệ
+                BigDecimal itemGross = priceAtBuy.multiply(BigDecimal.valueOf(qty));
+                BigDecimal itemDiscount = BigDecimal.ZERO;
+                if (shopGross.compareTo(BigDecimal.ZERO) > 0 && shopDiscount.compareTo(BigDecimal.ZERO) > 0) {
+                    itemDiscount = shopDiscount
+                            .multiply(itemGross)
+                            .divide(shopGross, 2, java.math.RoundingMode.HALF_UP);
+                }
+
                 OrderItem savedItem = orderItemRepository.save(OrderItem.builder()
                         .shopOrder(savedShopOrder)
                         .productVariant(variant)
                         .quantity(qty)
                         .priceAtBuy(priceAtBuy)
-                        .discountAmount(BigDecimal.ZERO)
+                        .discountAmount(itemDiscount)  // ← lưu phần discount phân bổ
                         .build());
 
-                // COD: trừ stock ngay. SEPAY: chờ webhook
                 if (paymentMethod == PaymentMethod.COD) {
                     variantRepository.deductStock(variant.getId(), qty);
                     log.info("Stock deducted (COD): variantId={}, qty={}", variant.getId(), qty);
@@ -675,8 +795,8 @@ public class OrderService {
                     .shopId(shop.getId())
                     .shopName(shop.getShopName())
                     .status(shopOrderStatus)
-                    .shopTotalAmount(shopTotal)
-                    .shippingFee(shopShippingFee)   // ← expose trong response
+                    .shopTotalAmount(shopTotal)     // ← đã trừ discount
+                    .shippingFee(shopShippingFee)
                     .items(itemResponses)
                     .build());
         }

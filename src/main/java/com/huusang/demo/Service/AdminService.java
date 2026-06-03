@@ -3,10 +3,12 @@ package com.huusang.demo.Service;
 import com.huusang.demo.Dto.Response.AdminWalletResponse;
 import com.huusang.demo.Dto.Response.ShopWalletResponse;
 import com.huusang.demo.Dto.Response.OrderResponse;
+import com.huusang.demo.Dto.Response.ShopOrderResponse;
 import com.huusang.demo.Dto.Response.WithdrawalResponse;
 import com.huusang.demo.Dto.Request.WithdrawalRequest;
 import com.huusang.demo.Entity.*;
 import com.huusang.demo.Enum.OrderStatus;
+import com.huusang.demo.Enum.PaymentMethod;
 import com.huusang.demo.Exception.AppException;
 import com.huusang.demo.Exception.ErrorCode;
 import com.huusang.demo.Repository.*;
@@ -208,13 +210,42 @@ public class AdminService {
         }
 
         List<OrderResponse> orderResponses = orders.stream()
-                .map(order -> OrderResponse.builder()
-                        .orderId(order.getId())
-                        .status(order.getStatus())
-                        .totalAmount(order.getTotalAmount())
-                        .finalAmount(order.getFinalAmount())
-                        .createdAt(order.getCreatedAt())
-                        .build())
+                .map(order -> {
+                    // Buyer info
+                    User buyer = order.getBuyer();
+                    
+                    // Shop orders info
+                    List<ShopOrderResponse> shopOrderResponses = order.getShopOrders() != null
+                            ? order.getShopOrders().stream()
+                                    .map(so -> ShopOrderResponse.builder()
+                                            .shopOrderId(so.getId())
+                                            .shopId(so.getShop().getId())
+                                            .shopName(so.getShop().getShopName())
+                                            .status(so.getStatus())
+                                            .shopTotalAmount(so.getShopTotalAmount())
+                                            .build())
+                                    .collect(Collectors.toList())
+                            : List.of();
+                    
+                    return OrderResponse.builder()
+                            .orderId(order.getId())
+                            .status(order.getStatus())
+                            .paymentMethod(PaymentMethod.valueOf(order.getPaymentMethod()))
+                            .totalAmount(order.getTotalAmount())
+                            .discountAmount(order.getDiscountAmount())
+                            .finalAmount(order.getFinalAmount())
+                            .createdAt(order.getCreatedAt())
+                            .totalShops(shopOrderResponses.size())
+                            .totalItems(order.getShopOrders() != null
+                                    ? order.getShopOrders().stream()
+                                            .flatMap(so -> so.getOrderItems().stream())
+                                            .mapToInt(OrderItem::getQuantity).sum()
+                                    : 0)
+                            .buyerFullName(buyer != null ? buyer.getFullName() : null)
+                            .buyerEmail(buyer != null ? buyer.getEmail() : null)
+                            .shopOrders(shopOrderResponses)
+                            .build();
+                })
                 .collect(Collectors.toList());
 
         int start = (int) pageable.getOffset();

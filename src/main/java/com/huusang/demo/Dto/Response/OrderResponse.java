@@ -29,6 +29,10 @@ public class OrderResponse {
     int totalShops;              // Số lượng shop tham gia đơn hàng
     int totalItems;              // Tổng số sản phẩm (qty)
 
+    // Buyer info (for admin)
+    String buyerFullName;
+    String buyerEmail;
+
     List<ShopOrderResponse> shopOrders;
 
     /**

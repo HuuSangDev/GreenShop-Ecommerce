@@ -34,6 +34,13 @@ public class ShopService {
     RoleRepository roleRepository;
     OrderItemRepository orderItemRepository;
     PaymentRepository paymentRepository;
+    ShopOrderRepository shopOrderRepository;
+    CommissionRepository commissionRepository;
+    OrderRepository orderRepository;
+
+    /** Tỷ lệ commission sàn thu (2%) */
+    static final BigDecimal COMMISSION_RATE = new BigDecimal("2.00");
+    static final BigDecimal HUNDRED = new BigDecimal("100");
 
     // ─────────────────────────────────────────────────────────────────────────
     //  SHOP APPLICATION (Đăng ký mở gian hàng)
@@ -257,7 +264,8 @@ public class ShopService {
     }
 
     /**
-     * SELLER: Tạo yêu cầu rút tiền, kiểm tra số dư đủ không.
+     * SELLER: Rút tiền từ ví (tự động, không cần duyệt).
+     * Trừ balance ngay và cập nhật totalWithdrawn.
      */
     @Transactional
     public WithdrawalResponse requestWithdrawal(String userEmail, WithdrawalRequest request) {
@@ -270,20 +278,22 @@ public class ShopService {
             throw new AppException(ErrorCode.SHOP_INSUFFICIENT_BALANCE);
         }
 
-        // Trừ tiền khỏi balance (tạm giữ chờ duyệt)
+        // Trừ tiền khỏi balance và cập nhật totalWithdrawn ngay lập tức
         wallet.setBalance(wallet.getBalance().subtract(request.getAmount()));
+        wallet.setTotalWithdrawn(wallet.getTotalWithdrawn().add(request.getAmount()));
         shopWalletRepository.save(wallet);
 
-        // Tạo Withdrawal request
+        // Tạo Withdrawal record với trạng thái APPROVED (đã rút thành công)
         Withdrawal withdrawal = Withdrawal.builder()
                 .shop(shop)
                 .amount(request.getAmount())
-                .status(WithdrawalStatus.PENDING)
+                .status(WithdrawalStatus.APPROVED)
                 .requestedAt(LocalDateTime.now())
+                .resolvedAt(LocalDateTime.now())
                 .build();
         withdrawalRepository.save(withdrawal);
 
-        log.info("Shop {} đã tạo yêu cầu rút {} VND", shop.getShopName(), request.getAmount());
+        log.info("Shop {} đã rút {} VND thành công (tự động)", shop.getShopName(), request.getAmount());
         return toWithdrawalResponse(withdrawal);
     }
 
@@ -328,39 +338,17 @@ public class ShopService {
     }
 
     /**
-     * ADMIN: Duyệt hoặc từ chối yêu cầu rút tiền.
-     * - APPROVED: cập nhật totalWithdrawn
-     * - REJECTED: hoàn tiền lại balance
+     * [DEPRECATED] Method này không còn được sử dụng vì rút tiền tự động.
+     * Giữ lại để tương thích API cũ nếu cần.
      */
+    @Deprecated
     @Transactional
     public WithdrawalResponse processWithdrawal(String withdrawalId, ProcessWithdrawalRequest request) {
+        // Tất cả withdrawal đều tự động APPROVED rồi, method này không còn ý nghĩa
         Withdrawal withdrawal = withdrawalRepository.findById(withdrawalId)
                 .orElseThrow(() -> new AppException(ErrorCode.SHOP_WITHDRAWAL_NOT_FOUND));
-
-        if (withdrawal.getStatus() != WithdrawalStatus.PENDING) {
-            throw new AppException(ErrorCode.SHOP_WITHDRAWAL_NOT_PENDING);
-        }
-
-        if (request.getStatus() == WithdrawalStatus.APPROVED) {
-            // Cập nhật totalWithdrawn trong wallet
-            ShopWallet wallet = shopWalletRepository.findByShopId(withdrawal.getShop().getId())
-                    .orElseThrow(() -> new AppException(ErrorCode.SHOP_WALLET_NOT_FOUND));
-            wallet.setTotalWithdrawn(wallet.getTotalWithdrawn().add(withdrawal.getAmount()));
-            shopWalletRepository.save(wallet);
-            log.info("Admin đã DUYỆT rút tiền {} — shop {}", withdrawalId, withdrawal.getShop().getShopName());
-
-        } else if (request.getStatus() == WithdrawalStatus.REJECTED) {
-            // Hoàn tiền lại balance
-            ShopWallet wallet = shopWalletRepository.findByShopId(withdrawal.getShop().getId())
-                    .orElseThrow(() -> new AppException(ErrorCode.SHOP_WALLET_NOT_FOUND));
-            wallet.setBalance(wallet.getBalance().add(withdrawal.getAmount()));
-            shopWalletRepository.save(wallet);
-            log.info("Admin đã TỪ CHỐI rút tiền {} — hoàn lại {} vào ví shop", withdrawalId, withdrawal.getAmount());
-        }
-
-        withdrawal.setStatus(request.getStatus());
-        withdrawal.setResolvedAt(LocalDateTime.now());
-        withdrawalRepository.save(withdrawal);
+        
+        log.warn("processWithdrawal called but withdrawals are now auto-approved. withdrawalId={}", withdrawalId);
         return toWithdrawalResponse(withdrawal);
     }
 
@@ -480,6 +468,208 @@ public class ShopService {
                 .resolvedAt(w.getResolvedAt())
                 .shopId(w.getShop().getId())
                 .shopName(w.getShop().getShopName())
+                .build();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  SELLER — SHOP ORDERS (Đơn hàng từ khách)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * SELLER: Lấy danh sách ShopOrder của shop mình, filter theo status tuỳ chọn.
+     * GET /shops/me/orders?status=PENDING
+     */
+    public List<SellerShopOrderResponse> getMyShopOrders(String userEmail, OrderStatus status) {
+        Shop shop = getShopByOwnerEmail(userEmail);
+        List<ShopOrder> shopOrders = shopOrderRepository.findByShopIdOrderByIdDesc(shop.getId());
+
+        return shopOrders.stream()
+                .filter(so -> status == null || so.getStatus() == status)
+                .map(this::toSellerShopOrderResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * SELLER: Cập nhật trạng thái ShopOrder (xác nhận, giao hàng, hủy...).
+     * PUT /shops/me/orders/{shopOrderId}/status
+     *
+     * Luật chuyển trạng thái hợp lệ:
+     *   PENDING / PAID     → PREPARING     (xác nhận đơn)
+     *   PREPARING          → READY_TO_SHIP | CANCELLED
+     *   READY_TO_SHIP      → SHIPPED
+     *   SHIPPED            → DELIVERED     ← TẠI ĐÂY: settle tiền vào ví + tạo Commission
+     *   DELIVERED / CANCELLED  → không cho thay đổi
+     */
+    @Transactional
+    public SellerShopOrderResponse updateShopOrderStatus(String userEmail, Long shopOrderId,
+                                                         UpdateShopOrderStatusRequest request) {
+        Shop shop = getShopByOwnerEmail(userEmail);
+
+        ShopOrder shopOrder = shopOrderRepository.findById(shopOrderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+
+        if (!shopOrder.getShop().getId().equals(shop.getId())) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        OrderStatus current = shopOrder.getStatus();
+        OrderStatus next    = request.getStatus();
+
+        Map<OrderStatus, Set<OrderStatus>> allowedTransitions = new HashMap<>();
+        allowedTransitions.put(OrderStatus.PENDING,        EnumSet.of(OrderStatus.PREPARING, OrderStatus.CANCELLED));
+        allowedTransitions.put(OrderStatus.PAID,           EnumSet.of(OrderStatus.PREPARING, OrderStatus.CANCELLED));
+        allowedTransitions.put(OrderStatus.PREPARING,      EnumSet.of(OrderStatus.READY_TO_SHIP, OrderStatus.CANCELLED));
+        allowedTransitions.put(OrderStatus.READY_TO_SHIP,  EnumSet.of(OrderStatus.SHIPPED));
+        allowedTransitions.put(OrderStatus.SHIPPED,        EnumSet.of(OrderStatus.DELIVERED));
+
+        Set<OrderStatus> allowed = allowedTransitions.getOrDefault(current, Set.of());
+        if (!allowed.contains(next)) {
+            throw new AppException(ErrorCode.ORDER_INVALID_PAYMENT_METHOD);
+        }
+
+        shopOrder.setStatus(next);
+        shopOrderRepository.save(shopOrder);
+        log.info("Seller {} cập nhật ShopOrder #{} từ {} → {}", userEmail, shopOrderId, current, next);
+
+        // ── Khi giao hàng thành công: settle tiền vào ví và trừ commission ──────
+        if (next == OrderStatus.DELIVERED) {
+            settleDeliveredOrder(shopOrder);
+        }
+
+        // ── Khi seller hủy đơn: kiểm tra tất cả ShopOrder của Order đó ─────────
+        if (next == OrderStatus.CANCELLED) {
+            syncOrderStatusOnShopOrderCancelled(shopOrder);
+        }
+
+        return toSellerShopOrderResponse(shopOrder);
+    }
+
+    /**
+     * Khi ShopOrder chuyển sang DELIVERED:
+     * 1. Tính gross = shopTotalAmount (đã trừ voucher discount từ lúc tạo đơn)
+     * 2. Tính commission 2% cho sàn
+     * 3. netAmount = gross - commission
+     * 4. Cộng netAmount vào balance + totalEarned của ShopWallet
+     * 5. Lưu bản ghi Commission (idempotent — skip nếu đã tồn tại)
+     */
+    private void settleDeliveredOrder(ShopOrder shopOrder) {
+        // Idempotency: nếu đã settle rồi thì bỏ qua
+        if (commissionRepository.findByShopOrderId(shopOrder.getId()).isPresent()) {
+            log.warn("settleDeliveredOrder: shopOrderId={} đã được settle, bỏ qua", shopOrder.getId());
+            return;
+        }
+
+        BigDecimal gross = shopOrder.getShopTotalAmount() != null
+                ? shopOrder.getShopTotalAmount() : BigDecimal.ZERO;
+
+        // Commission = gross * 2 / 100
+        BigDecimal commissionAmt = gross
+                .multiply(COMMISSION_RATE)
+                .divide(HUNDRED, 2, java.math.RoundingMode.HALF_UP);
+
+        BigDecimal netAmount = gross.subtract(commissionAmt).max(BigDecimal.ZERO);
+
+        // Lưu Commission record
+        commissionRepository.save(Commission.builder()
+                .shopOrder(shopOrder)
+                .shop(shopOrder.getShop())
+                .grossAmount(gross)
+                .commissionRate(COMMISSION_RATE)
+                .commissionAmt(commissionAmt)
+                .netAmount(netAmount)
+                .build());
+
+        // Cộng tiền vào ví shop
+        ShopWallet wallet = shopWalletRepository.findByShopId(shopOrder.getShop().getId())
+                .orElseThrow(() -> new AppException(ErrorCode.SHOP_WALLET_NOT_FOUND));
+
+        wallet.setBalance(wallet.getBalance().add(netAmount));
+        wallet.setTotalEarned(wallet.getTotalEarned().add(netAmount));
+        shopWalletRepository.save(wallet);
+
+        log.info("Settle ShopOrder #{}: gross={}, commission={}({}%), net={} → credited to shop {}",
+                shopOrder.getId(), gross, commissionAmt, COMMISSION_RATE,
+                netAmount, shopOrder.getShop().getShopName());
+    }
+
+    /**
+     * Khi seller hủy 1 ShopOrder → kiểm tra tất cả ShopOrder của Order đó.
+     * Nếu TẤT CẢ các ShopOrder đều CANCELLED → cập nhật Order chính sang CANCELLED.
+     */
+    private void syncOrderStatusOnShopOrderCancelled(ShopOrder cancelledShopOrder) {
+        Order order = cancelledShopOrder.getOrder();
+        if (order == null) return;
+
+        // Lấy tất cả ShopOrder của Order này
+        List<ShopOrder> allShopOrders = order.getShopOrders();
+        if (allShopOrders == null || allShopOrders.isEmpty()) return;
+
+        // Kiểm tra xem tất cả ShopOrder có phải CANCELLED không
+        boolean allCancelled = allShopOrders.stream()
+                .allMatch(so -> so.getStatus() == OrderStatus.CANCELLED);
+
+        if (allCancelled && order.getStatus() != OrderStatus.CANCELLED) {
+            order.setStatus(OrderStatus.CANCELLED);
+            orderRepository.save(order);
+            log.info("Order #{} đã được cập nhật sang CANCELLED vì tất cả ShopOrder đều bị hủy", order.getId());
+        }
+    }
+
+    private SellerShopOrderResponse toSellerShopOrderResponse(ShopOrder so) {
+        List<OrderItemResponse> items = so.getOrderItems().stream()
+                .map(item -> OrderItemResponse.builder()
+                        .orderItemId(item.getId())
+                        .variantId(item.getProductVariant() != null ? item.getProductVariant().getId() : null)
+                        .variantName(item.getProductVariant() != null ? item.getProductVariant().getVariantName() : null)
+                        .sku(item.getProductVariant() != null ? item.getProductVariant().getSku() : null)
+                        .productName(item.getProductVariant() != null && item.getProductVariant().getProduct() != null
+                                ? item.getProductVariant().getProduct().getProductName() : null)
+                        .productImageUrl(item.getProductVariant() != null && item.getProductVariant().getProduct() != null
+                                ? item.getProductVariant().getProduct().getImageUrl() : null)
+                        .quantity(item.getQuantity())
+                        .priceAtBuy(item.getPriceAtBuy())
+                        .subtotal(item.getPriceAtBuy() != null
+                                ? item.getPriceAtBuy().multiply(BigDecimal.valueOf(item.getQuantity()))
+                                : BigDecimal.ZERO)
+                        .build())
+                .collect(Collectors.toList());
+
+        Order order = so.getOrder();
+        User buyer  = order != null ? order.getBuyer() : null;
+
+        // Tính discount đã phân bổ = sum(item.discountAmount) trong shopOrder
+        BigDecimal shopDiscount = so.getOrderItems().stream()
+                .map(item -> item.getDiscountAmount() != null ? item.getDiscountAmount() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Lấy commission nếu đã DELIVERED
+        BigDecimal commissionAmt = null;
+        BigDecimal netEarned     = null;
+        if (so.getStatus() == OrderStatus.DELIVERED) {
+            commissionRepository.findByShopOrderId(so.getId()).ifPresent(c -> {
+                // không thể gán trực tiếp vào local var → dùng array wrapper
+            });
+            var commOpt = commissionRepository.findByShopOrderId(so.getId());
+            if (commOpt.isPresent()) {
+                commissionAmt = commOpt.get().getCommissionAmt();
+                netEarned     = commOpt.get().getNetAmount();
+            }
+        }
+
+        return SellerShopOrderResponse.builder()
+                .shopOrderId(so.getId())
+                .status(so.getStatus())
+                .shopTotalAmount(so.getShopTotalAmount())
+                .shippingFee(so.getShippingFee())
+                .items(items)
+                .orderId(order != null ? order.getId() : null)
+                .paymentMethod(order != null ? order.getPaymentMethod() : null)
+                .createdAt(order != null ? order.getCreatedAt() : null)
+                .discountAmount(shopDiscount)
+                .buyerName(buyer != null ? buyer.getFullName() : null)
+                .buyerEmail(buyer != null ? buyer.getEmail() : null)
+                .commissionAmt(commissionAmt)
+                .netEarned(netEarned)
                 .build();
     }
 }

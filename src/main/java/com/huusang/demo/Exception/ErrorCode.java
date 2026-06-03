@@ -33,6 +33,7 @@ public enum ErrorCode {
     ORDER_EMPTY_CART_ITEMS(402, "No cart items provided for checkout"),
     ORDER_NOT_FOUND(403, "Order not found"),
     ORDER_INVALID_PAYMENT_METHOD(404, "Invalid payment method"),
+    ORDER_CANNOT_BE_CANCELLED(405, "Đơn hàng không thể hủy ở trạng thái hiện tại"),
 
     //PAYMENT
     PAYMENT_NOT_FOUND(501, "Payment not found"),

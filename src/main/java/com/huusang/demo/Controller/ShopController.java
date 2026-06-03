@@ -5,7 +5,7 @@ import com.huusang.demo.Dto.Request.*;
 import com.huusang.demo.Dto.Response.*;
 import com.huusang.demo.Enum.ShopApplicationStatus;
 import com.huusang.demo.Enum.ShopStatus;
-import com.huusang.demo.Enum.ShopApplicationStatus;
+import com.huusang.demo.Enum.OrderStatus;
 import com.huusang.demo.Service.ShopService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -263,10 +263,12 @@ public class ShopController {
     }
 
     /**
+     * [DEPRECATED] Endpoint này không còn được sử dụng vì rút tiền tự động.
      * PUT /shops/withdrawals/{id}/process
      * Admin duyệt hoặc từ chối yêu cầu rút tiền.
      * Quyền: ADMIN
      */
+    /*
     @PutMapping("/withdrawals/{id}/process")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<WithdrawalResponse> processWithdrawal(
@@ -279,6 +281,44 @@ public class ShopController {
                 : "Đã từ chối yêu cầu rút tiền";
         return ApiResponse.<WithdrawalResponse>builder()
                 .message(msg)
+                .result(response)
+                .build();
+    }
+    */
+
+    /**
+     * GET /shops/me/orders?status=PENDING
+     * Seller xem danh sách đơn hàng (ShopOrder) của shop mình, filter theo status tuỳ chọn.
+     * Quyền: SELLER
+     */
+    @GetMapping("/me/orders")
+    @PreAuthorize("hasRole('SELLER')")
+    public ApiResponse<List<SellerShopOrderResponse>> getMyShopOrders(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) OrderStatus status) {
+
+        List<SellerShopOrderResponse> orders = shopService.getMyShopOrders(getEmail(jwt), status);
+        return ApiResponse.<List<SellerShopOrderResponse>>builder()
+                .message("Danh sách đơn hàng của cửa hàng")
+                .result(orders)
+                .build();
+    }
+
+    /**
+     * PUT /shops/me/orders/{shopOrderId}/status
+     * Seller cập nhật trạng thái đơn hàng (xác nhận, giao, hủy).
+     * Quyền: SELLER
+     */
+    @PutMapping("/me/orders/{shopOrderId}/status")
+    @PreAuthorize("hasRole('SELLER')")
+    public ApiResponse<SellerShopOrderResponse> updateShopOrderStatus(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long shopOrderId,
+            @Valid @RequestBody UpdateShopOrderStatusRequest request) {
+
+        SellerShopOrderResponse response = shopService.updateShopOrderStatus(getEmail(jwt), shopOrderId, request);
+        return ApiResponse.<SellerShopOrderResponse>builder()
+                .message("Cập nhật trạng thái đơn hàng thành công")
                 .result(response)
                 .build();
     }
