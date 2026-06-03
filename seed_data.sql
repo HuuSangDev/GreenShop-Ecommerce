@@ -9,17 +9,58 @@ SET FOREIGN_KEY_CHECKS=0;
 -- ============================================================
 -- 1. CATEGORIES
 -- ============================================================
-INSERT INTO categories (name, slug, description, parent_id, level, sort_order, is_active, created_at, updated_at) VALUES
-('Điện thoại',      'dien-thoai',       'Điện thoại di động',         NULL, 0, 1, 1, NOW(), NOW()),
-('Laptop',          'laptop',           'Máy tính xách tay',          NULL, 0, 2, 1, NOW(), NOW()),
-('Thời trang',      'thoi-trang',       'Quần áo, phụ kiện',          NULL, 0, 3, 1, NOW(), NOW()),
-('Đồ gia dụng',     'do-gia-dung',      'Thiết bị gia đình',          NULL, 0, 4, 1, NOW(), NOW()),
-('Sách',            'sach',             'Sách các thể loại',          NULL, 0, 5, 1, NOW(), NOW()),
-('iPhone',          'iphone',           'Điện thoại Apple iPhone',    1,    1, 1, 1, NOW(), NOW()),
-('Android',         'android',          'Điện thoại Android',         1,    1, 2, 1, NOW(), NOW()),
-('Gaming Laptop',   'gaming-laptop',    'Laptop chơi game',           2,    1, 1, 1, NOW(), NOW()),
-('Văn phòng',       'laptop-van-phong', 'Laptop văn phòng',           2,    1, 2, 1, NOW(), NOW()),
-('Áo nam',          'ao-nam',           'Áo các loại cho nam',        3,    1, 1, 1, NOW(), NOW());
+USE Ecommerce;
+describe categories;
+
+-- 2. Insert CÁC DANH MỤC CHA (Đã ép cứng ID để map chuẩn với con)
+INSERT INTO categories (id, name, slug, description, parent_id, level, sort_order, is_active) VALUES
+(1, 'Điện tử',       'dien-tu',      'Thiết bị điện tử, công nghệ',          NULL, 0, 1, TRUE),
+(2, 'Thời trang',    'thoi-trang',   'Quần áo, giày dép, phụ kiện',          NULL, 0, 2, TRUE),
+(3, 'Nhà cửa & Bếp', 'nha-cua-bep',  'Đồ nội thất, dụng cụ nhà bếp',         NULL, 0, 3, TRUE),
+(4, 'Sách',          'sach',         'Sách giáo khoa, tiểu thuyết, kỹ năng', NULL, 0, 4, TRUE),
+(5, 'Thể thao',      'the-thao',     'Dụng cụ thể thao, quần áo thể thao',   NULL, 0, 5, TRUE),
+(6, 'Làm đẹp',       'lam-dep',      'Mỹ phẩm, chăm sóc da, tóc',            NULL, 0, 6, TRUE),
+(7, 'Thực phẩm',     'thuc-pham',    'Thực phẩm sạch, đồ uống, bánh kẹo',    NULL, 0, 7, TRUE);
+
+UPDATE categories 
+SET image_url = CASE id
+    WHEN 1 THEN 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=500&auto=format&fit=crop'   -- Điện tử
+    WHEN 2 THEN 'https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=500&auto=format&fit=crop'   -- Thời trang
+    WHEN 3 THEN 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=500&auto=format&fit=crop'   -- Nhà cửa & Bếp
+    WHEN 4 THEN 'https://images.unsplash.com/photo-1495206899629-4b162f76d997?q=80&w=500&auto=format&fit=crop'   -- Sách
+    WHEN 5 THEN 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=500&auto=format&fit=crop'   -- Thể thao
+    WHEN 6 THEN 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=500&auto=format&fit=crop'   -- Làm đẹp
+    WHEN 7 THEN 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=500&auto=format&fit=crop'   -- Thực phẩm
+END
+WHERE level = 0 AND parent_id IS NULL;
+-- 3. Insert CÁC DANH MỤC CON
+-- (Level 1 của Điện tử - parent_id = 1)
+INSERT INTO categories (name, slug, description, parent_id, level, sort_order, is_active) VALUES
+('Điện thoại',     'dien-thoai',      'Smartphone, điện thoại phổ thông', 1, 1, 1, TRUE),
+('Laptop',         'laptop',          'Máy tính xách tay',                1, 1, 2, TRUE),
+('Tai nghe',       'tai-nghe',        'Tai nghe không dây, có dây',       1, 1, 3, TRUE),
+('Máy tính bảng',  'may-tinh-bang',   'iPad, Android tablet',             1, 1, 4, TRUE),
+('Phụ kiện điện tử','phu-kien-dien-tu','Ốp lưng, cáp sạc, pin dự phòng',  1, 1, 5, TRUE);
+
+-- (Level 1 của Thời trang - parent_id = 2)
+INSERT INTO categories (name, slug, description, parent_id, level, sort_order, is_active) VALUES
+('Áo nam',         'ao-nam',          'Áo thun, áo sơ mi, áo khoác nam',  2, 1, 1, TRUE),
+('Áo nữ',          'ao-nu',           'Áo thun, áo kiểu, váy nữ',         2, 1, 2, TRUE),
+('Giày nam',       'giay-nam',        'Giày thể thao, giày tây nam',      2, 1, 3, TRUE),
+('Giày nữ',        'giay-nu',         'Giày cao gót, sandal nữ',          2, 1, 4, TRUE),
+('Túi xách',       'tui-xach',        'Túi xách, balo, ví',               2, 1, 5, TRUE);
+
+-- (Level 1 của Nhà cửa & Bếp - parent_id = 3)
+INSERT INTO categories (name, slug, description, parent_id, level, sort_order, is_active) VALUES
+('Nội thất',       'noi-that',        'Bàn ghế, giường tủ',               3, 1, 1, TRUE),
+('Dụng cụ bếp',    'dung-cu-bep',     'Nồi, chảo, dao, thớt',             3, 1, 2, TRUE),
+('Đồ trang trí',   'do-trang-tri',    'Đèn, tranh ảnh, cây cảnh nhân tạo',3, 1, 3, TRUE);
+
+-- (Level 1 của Làm đẹp - parent_id = 6)
+INSERT INTO categories (name, slug, description, parent_id, level, sort_order, is_active) VALUES
+('Chăm sóc da',    'cham-soc-da',     'Kem dưỡng, sữa rửa mặt, serum',    6, 1, 1, TRUE),
+('Trang điểm',     'trang-diem',      'Son, phấn, mascara',               6, 1, 2, TRUE),
+('Chăm sóc tóc',   'cham-soc-toc',    'Dầu gội, dầu xả, kem ủ tóc',       6, 1, 3, TRUE);
 
 -- ============================================================
 -- 2. USERS (password = BCrypt của "123456")
@@ -31,13 +72,16 @@ INSERT INTO users (id, username, email, password, full_name, phone_number, activ
 ('user-seller-02', 'seller_fashion',   'seller2@test.com',  '$2a$10$d8bIshBQYR6gN4q2MMOgoOirCl5..Q5ftOTOPolo2Wp7FLnjyWXh.', 'Trần Thị Fashion',   '0902222222', 1, NOW()),
 ('user-seller-03', 'seller_books',     'seller3@test.com',  '$2a$10$d8bIshBQYR6gN4q2MMOgoOirCl5..Q5ftOTOPolo2Wp7FLnjyWXh.', 'Lê Văn Books',       '0903333333', 1, NOW()),
 ('user-buyer-01',  'buyer_nguyen',     'buyer1@test.com',   '$2a$10$d8bIshBQYR6gN4q2MMOgoOirCl5..Q5ftOTOPolo2Wp7FLnjyWXh.', 'Phạm Thị Buyer',     '0904444444', 1, NOW()),
+('user-buyer-05',  'buyer_tran',       'buyer5@test.com',   '$2a$10$d8bIshBQYR6gN4q2MMOgoOirCl5..Q5ftOTOPolo2Wp7FLnjyWXh.', 'Phuc',      '0905555555', 1, NOW()),
+('admin-05',  'admin_phuc',       'admin5@test.com',   '$2a$10$d8bIshBQYR6gN4q2MMOgoOirCl5..Q5ftOTOPolo2Wp7FLnjyWXh.', 'Phuc',      '0905555555', 1, NOW()),
 ('user-buyer-02',  'buyer_tran',       'buyer2@test.com',   '$2a$10$d8bIshBQYR6gN4q2MMOgoOirCl5..Q5ftOTOPolo2Wp7FLnjyWXh.', 'Hoàng Văn Mua',      '0905555555', 1, NOW()),
 ('user-buyer-03',  'buyer_le',         'buyer3@test.com',   '$2a$10$d8bIshBQYR6gN4q2MMOgoOirCl5..Q5ftOTOPolo2Wp7FLnjyWXh.', 'Vũ Thị Khách',       '0906666666', 1, NOW()),
 ('user-banned-01', 'banned_user',      'banned@test.com',   '$2a$10$d8bIshBQYR6gN4q2MMOgoOirCl5..Q5ftOTOPolo2Wp7FLnjyWXh.', 'Tài Khoản Bị Khóa',  '0907777777', 0, NOW());
 
 -- Gán role ADMIN cho admin
 INSERT INTO user_roles (user_id, role_name) VALUES
-('user-admin-03', 'ADMIN');
+('user-admin-03', 'ADMIN'),
+('admin-05', 'ADMIN');
 
 
 -- Gán role SELLER cho 3 seller
@@ -48,6 +92,7 @@ INSERT INTO user_roles (user_id, role_name) VALUES
 
 -- Gán role BUYER cho tất cả (kể cả admin, seller)
 INSERT INTO user_roles (user_id, role_name) VALUES
+('user-buyer-05',  'BUYER'),
 ('user-admin-03',  'BUYER'),
 ('user-seller-01', 'BUYER'),
 ('user-seller-02', 'BUYER'),
@@ -68,29 +113,24 @@ INSERT INTO shops (owner_id, shop_name, description, rating, status, created_at)
 -- ============================================================
 -- 4. PRODUCTS + VARIANTS (shop_id 1 = TechZone, 2 = Fashion, 3 = Book)
 -- ============================================================
--- Thêm cột sold_count nếu chưa có
-ALTER TABLE products ADD COLUMN IF NOT EXISTS sold_count INT DEFAULT 0;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS average_rating DECIMAL(3,2) DEFAULT 0.00;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS total_reviews INT DEFAULT 0;
-
-INSERT INTO products (shop_id, category_id, product_name, description, price, stock_quantity, image_url, available, sold_count, average_rating, total_reviews, created_at) VALUES
+INSERT INTO products (shop_id, category_id, product_name, description, price, stock_quantity, image_url, available, created_at) VALUES
 -- TechZone (shop 1) — Điện thoại
-(1, 6,  'iPhone 15 Pro Max',       'iPhone 15 Pro Max 256GB, chip A17 Pro',         34990000, 50,  NULL, 1, 3, 4.67, 3, NOW()),
-(1, 6,  'iPhone 14',               'iPhone 14 128GB, màu đen, trắng, đỏ',           22990000, 80,  NULL, 1, 2, 4.00, 2, NOW()),
-(1, 7,  'Samsung Galaxy S24 Ultra','Samsung S24 Ultra 512GB, bút S-Pen',            29990000, 30,  NULL, 1, 3, 4.67, 3, NOW()),
-(1, 7,  'Xiaomi 14 Pro',           'Xiaomi 14 Pro 256GB, camera Leica',             18990000, 45,  NULL, 1, 0, 0.00, 0, NOW()),
-(1, 8,  'ASUS ROG Strix G16',      'Laptop gaming RTX 4070, i9-13900H, 32GB RAM',  45990000, 15,  NULL, 1, 0, 0.00, 0, NOW()),
-(1, 9,  'MacBook Air M3',          'MacBook Air 15 inch M3, 16GB RAM, 512GB SSD',   38990000, 20,  NULL, 1, 0, 0.00, 0, NOW()),
+(1, 6,  'iPhone 15 Pro Max',       'iPhone 15 Pro Max 256GB, chip A17 Pro',         34990000, 50,  NULL, 1, NOW()),
+(1, 6,  'iPhone 14',               'iPhone 14 128GB, màu đen, trắng, đỏ',           22990000, 80,  NULL, 1, NOW()),
+(1, 7,  'Samsung Galaxy S24 Ultra','Samsung S24 Ultra 512GB, bút S-Pen',            29990000, 30,  NULL, 1, NOW()),
+(1, 7,  'Xiaomi 14 Pro',           'Xiaomi 14 Pro 256GB, camera Leica',             18990000, 45,  NULL, 1, NOW()),
+(1, 8,  'ASUS ROG Strix G16',      'Laptop gaming RTX 4070, i9-13900H, 32GB RAM',  45990000, 15,  NULL, 1, NOW()),
+(1, 9,  'MacBook Air M3',          'MacBook Air 15 inch M3, 16GB RAM, 512GB SSD',   38990000, 20,  NULL, 1, NOW()),
 -- Fashion Hub (shop 2) — Thời trang
-(2, 10, 'Áo Polo Nam Cao Cấp',     'Áo polo cotton 100%, form slim fit',            450000,   200, NULL, 1, 3, 4.67, 3, NOW()),
-(2, 10, 'Áo Thun Oversize',        'Áo thun oversize unisex, nhiều màu',            280000,   350, NULL, 1, 1, 0.00, 0, NOW()),
-(2, 3,  'Quần Jeans Nam Slim',     'Quần jeans nam slim fit, co giãn 4 chiều',      650000,   150, NULL, 1, 0, 0.00, 0, NOW()),
-(2, 3,  'Váy Maxi Nữ Hoa',        'Váy maxi dài hoa nhí, chất liệu lụa mềm',      520000,   120, NULL, 1, 0, 0.00, 0, NOW()),
+(2, 10, 'Áo Polo Nam Cao Cấp',     'Áo polo cotton 100%, form slim fit',            450000,   200, NULL, 1, NOW()),
+(2, 10, 'Áo Thun Oversize',        'Áo thun oversize unisex, nhiều màu',            280000,   350, NULL, 1, NOW()),
+(2, 3,  'Quần Jeans Nam Slim',     'Quần jeans nam slim fit, co giãn 4 chiều',      650000,   150, NULL, 1, NOW()),
+(2, 3,  'Váy Maxi Nữ Hoa',        'Váy maxi dài hoa nhí, chất liệu lụa mềm',      520000,   120, NULL, 1, NOW()),
 -- Book World (shop 3) — Sách
-(3, 5,  'Đắc Nhân Tâm',           'Dale Carnegie - Nghệ thuật thu phục lòng người', 89000,   500, NULL, 1, 3, 5.00, 3, NOW()),
-(3, 5,  'Nhà Giả Kim',            'Paulo Coelho - Tiểu thuyết triết học nổi tiếng', 75000,   400, NULL, 1, 1, 0.00, 0, NOW()),
-(3, 5,  'Atomic Habits',          'James Clear - Thói quen nguyên tử',              95000,   300, NULL, 1, 0, 0.00, 0, NOW()),
-(3, 5,  'Sapiens',                'Yuval Noah Harari - Lược sử loài người',         120000,  250, NULL, 1, 0, 0.00, 0, NOW());
+(3, 5,  'Đắc Nhân Tâm',           'Dale Carnegie - Nghệ thuật thu phục lòng người', 89000,   500, NULL, 1, NOW()),
+(3, 5,  'Nhà Giả Kim',            'Paulo Coelho - Tiểu thuyết triết học nổi tiếng', 75000,   400, NULL, 1, NOW()),
+(3, 5,  'Atomic Habits',          'James Clear - Thói quen nguyên tử',              95000,   300, NULL, 1, NOW()),
+(3, 5,  'Sapiens',                'Yuval Noah Harari - Lược sử loài người',         120000,  250, NULL, 1, NOW());
 
 -- ============================================================
 -- 5. PRODUCT VARIANTS
@@ -305,30 +345,6 @@ INSERT INTO reviews (id, product_id, user_id, order_item_id, rating, comment, ve
 -- ============================================================
 -- RE-ENABLE FOREIGN KEY CHECKS
 -- ============================================================
-SET FOREIGN_KEY_CHECKS=1;
-
--- ============================================================
--- CẬP NHẬT AVERAGE_RATING VÀ TOTAL_REVIEWS CHO PRODUCTS
--- ============================================================
-UPDATE products p
-SET 
-    total_reviews = (SELECT COUNT(*) FROM reviews r WHERE r.product_id = p.id),
-    average_rating = COALESCE((SELECT AVG(r.rating) FROM reviews r WHERE r.product_id = p.id), 0);
-
--- ============================================================
--- CẬP NHẬT SOLD_COUNT DỰA TRÊN ORDER_ITEMS (CHỈ ĐƠN DELIVERED/COMPLETED)
--- ============================================================
-UPDATE products p
-SET sold_count = COALESCE((
-    SELECT SUM(oi.quantity)
-    FROM order_items oi
-    JOIN shop_orders so ON oi.shop_order_id = so.id
-    WHERE oi.product_variant_id IN (
-        SELECT pv.id FROM product_variants pv WHERE pv.product_id = p.id
-    )
-    AND so.status IN ('DELIVERED', 'COMPLETED')
-), 0);
-
 -- ============================================================
 -- DONE — Kiểm tra dữ liệu
 -- ============================================================

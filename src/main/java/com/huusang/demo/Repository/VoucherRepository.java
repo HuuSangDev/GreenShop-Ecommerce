@@ -34,7 +34,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, String> {
               AND v.startsAt <= :now
               AND v.expiresAt >= :now
               AND (v.maxUsage IS NULL OR v.usedCount < v.maxUsage)
-              AND v.minOrderAmt <= :orderAmt
+              AND (:orderAmt IS NULL OR v.minOrderAmt <= :orderAmt)
               AND (v.shop IS NULL OR v.shop.id = :shopId)
               AND NOT EXISTS (
                   SELECT vu FROM VoucherUsage vu
