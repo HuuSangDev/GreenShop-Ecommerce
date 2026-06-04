@@ -1,5 +1,8 @@
 package com.huusang.demo.Service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.huusang.demo.Dto.Request.CreateReviewRequest;
 import com.huusang.demo.Dto.Request.UpdateReviewRequest;
 import com.huusang.demo.Dto.Response.*;
@@ -17,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -34,10 +38,13 @@ public class ReviewService {
     ProductRepository productRepository;
     UserRepository userRepository;
     ShopRepository shopRepository;
+    FileStorageService fileStorageService;
+    ObjectMapper objectMapper;
 
     // ─── CREATE ───────────────────────────────────────────────────────────────
     @Transactional
-    public ReviewResponse createReview(String userEmail, CreateReviewRequest request) {
+    public ReviewResponse createReview(String userEmail, CreateReviewRequest request,
+                                       List<MultipartFile> images) {
         User user = getUserByEmail(userEmail);
         OrderItem orderItem = getOrderItemOrThrow(request.getOrderItemId());
 
@@ -59,20 +66,24 @@ public class ReviewService {
 
         Product product = orderItem.getProductVariant().getProduct();
 
+        // Upload ảnh nếu có
+        List<String> imageUrls = uploadImages(images);
+
         Review review = Review.builder()
                 .product(product)
                 .user(user)
                 .orderItem(orderItem)
                 .rating(request.getRating())
                 .comment(request.getComment())
+                .imageUrlsJson(toJson(imageUrls))
                 .verifiedPurchase(true)
                 .build();
 
         reviewRepository.save(review);
         updateProductRating(product.getId());
 
-        log.info("Review created: reviewId={}, productId={}, userId={}, rating={}",
-                review.getId(), product.getId(), user.getId(), request.getRating());
+        log.info("Review created: reviewId={}, productId={}, userId={}, rating={}, images={}",
+                review.getId(), product.getId(), user.getId(), request.getRating(), imageUrls.size());
 
         return toReviewResponse(review);
     }
@@ -113,6 +124,9 @@ public class ReviewService {
         if (!isOwner && !isAdmin) {
             throw new AppException(ErrorCode.REVIEW_NOT_OWNED);
         }
+
+        // Xóa những file ảnh đã upload
+        deleteImages(fromJson(review.getImageUrlsJson()));
 
         Long productId = review.getProduct().getId();
         reviewRepository.delete(review);
@@ -286,9 +300,10 @@ public class ReviewService {
                 .productImage(review.getProduct().getImageUrl())
                 .userId(review.getUser().getId())
                 .userName(review.getUser().getFullName() != null ? review.getUser().getFullName() : review.getUser().getUsername())
-                .userAvatar(null) // Add avatar field to User if needed
+                .userAvatar(null)
                 .rating(review.getRating())
                 .comment(review.getComment())
+                .imageUrls(fromJson(review.getImageUrlsJson()))
                 .verifiedPurchase(review.isVerifiedPurchase())
                 .createdAt(review.getCreatedAt())
                 .updatedAt(review.getUpdatedAt())
@@ -309,9 +324,45 @@ public class ReviewService {
                 .userAvatar(null)
                 .rating(review.getRating())
                 .comment(review.getComment())
+                .imageUrls(fromJson(review.getImageUrlsJson()))
                 .verifiedPurchase(review.isVerifiedPurchase())
                 .createdAt(review.getCreatedAt())
                 .updatedAt(review.getUpdatedAt())
                 .build();
+    }
+
+    // ─── IMAGE HELPERS ───────────────────────────────────────────────────────────
+    private List<String> uploadImages(List<MultipartFile> images) {
+        if (images == null || images.isEmpty()) return List.of();
+        return images.stream()
+                .filter(f -> f != null && !f.isEmpty())
+                .limit(5)
+                .map(f -> fileStorageService.storeFile(f, "reviews"))
+                .collect(Collectors.toList());
+    }
+
+    private void deleteImages(List<String> imageUrls) {
+        if (imageUrls == null) return;
+        imageUrls.forEach(fileStorageService::deleteFile);
+    }
+
+    private String toJson(List<String> list) {
+        if (list == null || list.isEmpty()) return null;
+        try {
+            return objectMapper.writeValueAsString(list);
+        } catch (JsonProcessingException e) {
+            log.warn("Cannot serialize image URLs to JSON", e);
+            return null;
+        }
+    }
+
+    private List<String> fromJson(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+        } catch (JsonProcessingException e) {
+            log.warn("Cannot deserialize image URLs from JSON: {}", json, e);
+            return List.of();
+        }
     }
 }

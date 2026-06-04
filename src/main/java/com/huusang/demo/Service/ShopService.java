@@ -537,21 +537,14 @@ public class ShopService {
             settleDeliveredOrder(shopOrder);
         }
 
-        // ── Khi seller hủy đơn: kiểm tra tất cả ShopOrder của Order đó ─────────
-        if (next == OrderStatus.CANCELLED) {
-            syncOrderStatusOnShopOrderCancelled(shopOrder);
-        }
+        // ── Đồng bộ trạng thái về Order chính ─────────
+        syncOrderStatus(shopOrder.getOrder());
 
         return toSellerShopOrderResponse(shopOrder);
     }
 
     /**
-     * Khi ShopOrder chuyển sang DELIVERED:
-     * 1. Tính gross = shopTotalAmount (đã trừ voucher discount từ lúc tạo đơn)
-     * 2. Tính commission 2% cho sàn
-     * 3. netAmount = gross - commission
-     * 4. Cộng netAmount vào balance + totalEarned của ShopWallet
-     * 5. Lưu bản ghi Commission (idempotent — skip nếu đã tồn tại)
+     * Settle tiền vào ví khi ShopOrder DELIVERED.
      */
     private void settleDeliveredOrder(ShopOrder shopOrder) {
         // Idempotency: nếu đã settle rồi thì bỏ qua
@@ -594,25 +587,35 @@ public class ShopService {
     }
 
     /**
-     * Khi seller hủy 1 ShopOrder → kiểm tra tất cả ShopOrder của Order đó.
-     * Nếu TẤT CẢ các ShopOrder đều CANCELLED → cập nhật Order chính sang CANCELLED.
+     * Đồng bộ trạng thái Order chính dựa trên các ShopOrder con.
+     * Quy tắc:
+     * - Nếu TẤT CẢ ShopOrder đều CANCELLED → Order CANCELLED.
+     * - Ngược lại: lấy trạng thái "thấp nhất" (theo thứ tự enum) trong số các ShopOrder chưa CANCELLED.
      */
-    private void syncOrderStatusOnShopOrderCancelled(ShopOrder cancelledShopOrder) {
-        Order order = cancelledShopOrder.getOrder();
+    private void syncOrderStatus(Order order) {
         if (order == null) return;
 
-        // Lấy tất cả ShopOrder của Order này
-        List<ShopOrder> allShopOrders = order.getShopOrders();
+        List<ShopOrder> allShopOrders = shopOrderRepository.findByOrderId(order.getId());
         if (allShopOrders == null || allShopOrders.isEmpty()) return;
 
-        // Kiểm tra xem tất cả ShopOrder có phải CANCELLED không
-        boolean allCancelled = allShopOrders.stream()
-                .allMatch(so -> so.getStatus() == OrderStatus.CANCELLED);
+        List<ShopOrder> activeShopOrders = allShopOrders.stream()
+                .filter(so -> so.getStatus() != OrderStatus.CANCELLED)
+                .collect(Collectors.toList());
 
-        if (allCancelled && order.getStatus() != OrderStatus.CANCELLED) {
-            order.setStatus(OrderStatus.CANCELLED);
+        OrderStatus newStatus;
+        if (activeShopOrders.isEmpty()) {
+            newStatus = OrderStatus.CANCELLED;
+        } else {
+            newStatus = activeShopOrders.stream()
+                    .map(ShopOrder::getStatus)
+                    .min(Comparator.comparing(OrderStatus::ordinal))
+                    .orElse(order.getStatus());
+        }
+
+        if (order.getStatus() != newStatus) {
+            log.info("Order #{} changed status from {} to {} based on ShopOrders", order.getId(), order.getStatus(), newStatus);
+            order.setStatus(newStatus);
             orderRepository.save(order);
-            log.info("Order #{} đã được cập nhật sang CANCELLED vì tất cả ShopOrder đều bị hủy", order.getId());
         }
     }
 

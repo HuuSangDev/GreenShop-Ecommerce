@@ -15,9 +15,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -30,14 +32,18 @@ public class ReviewController {
 
     ReviewService reviewService;
 
-    // ─── CREATE REVIEW ────────────────────────────────────────────────────────
-    @PostMapping("/reviews")
+    // ─── CREATE REVIEW ─────────────────────────────────────────────────────────────────
+    @PostMapping(value = "/reviews", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ReviewResponse> createReview(
             @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody CreateReviewRequest request) {
+            @RequestParam Long orderItemId,
+            @RequestParam Integer rating,
+            @RequestParam(required = false) String comment,
+            @RequestParam(value = "images", required = false) List<MultipartFile> images) {
 
-        ReviewResponse review = reviewService.createReview(getUserEmail(jwt), request);
+        CreateReviewRequest request = new CreateReviewRequest(orderItemId, rating, comment);
+        ReviewResponse review = reviewService.createReview(getUserEmail(jwt), request, images);
 
         return ApiResponse.<ReviewResponse>builder()
                 .code(201)

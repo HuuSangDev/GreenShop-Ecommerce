@@ -21,4 +21,6 @@ public class OrderItemResponse {
     Integer quantity;
     BigDecimal priceAtBuy;   // Giá chốt tại thời điểm mua
     BigDecimal subtotal;     // priceAtBuy * quantity
+    boolean reviewed;        // true nếu user đã đánh giá item này
+    Long productId;          // Để navigate đến trang sản phẩm
 }

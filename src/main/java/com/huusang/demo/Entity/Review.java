@@ -5,6 +5,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Data
@@ -40,6 +41,10 @@ public class Review {
 
     @Column(columnDefinition = "TEXT")
     String comment;
+
+    // Lưu danh sách URL ảnh dạng JSON string, ví dụ: ["reviews/uuid1.jpg","reviews/uuid2.jpg"]
+    @Column(name = "image_urls", columnDefinition = "TEXT")
+    String imageUrlsJson;
 
     @Column(name = "verified_purchase")
     boolean verifiedPurchase = true;

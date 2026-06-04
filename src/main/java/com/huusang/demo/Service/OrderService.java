@@ -43,6 +43,7 @@ public class OrderService {
     PaymentRepository        paymentRepository;
     UserRepository           userRepository;
     VoucherRepository        voucherRepository;
+    ReviewRepository         reviewRepository;
 
     // ─── Services ─────────────────────────────────────────────────────────────
     SePayService     sePayService;
@@ -323,10 +324,14 @@ public class OrderService {
                                                 .orderItemId(item.getId())
                                                 .productName(item.getProductVariant().getProduct().getProductName())
                                                 .productImageUrl(item.getProductVariant().getProduct().getImageUrl())
+                                                .productId(item.getProductVariant().getProduct().getId())
                                                 .variantName(item.getProductVariant().getVariantName())
                                                 .quantity(item.getQuantity())
                                                 .priceAtBuy(item.getPriceAtBuy())
                                                 .subtotal(item.getPriceAtBuy().multiply(BigDecimal.valueOf(item.getQuantity())))
+                                                .reviewed(order.getStatus() == OrderStatus.DELIVERED || order.getStatus() == OrderStatus.COMPLETED
+                                                        ? reviewRepository.findByOrderItemId(item.getId()).isPresent()
+                                                        : false)
                                                 .build())
                                         .toList();
                                 return ShopOrderResponse.builder()
@@ -391,9 +396,11 @@ public class OrderService {
                                     .sku(item.getProductVariant().getSku())
                                     .productName(item.getProductVariant().getProduct().getProductName())
                                     .productImageUrl(item.getProductVariant().getProduct().getImageUrl())
+                                    .productId(item.getProductVariant().getProduct().getId())
                                     .quantity(item.getQuantity())
                                     .priceAtBuy(item.getPriceAtBuy())
                                     .subtotal(item.getPriceAtBuy().multiply(BigDecimal.valueOf(item.getQuantity())))
+                                    .reviewed(reviewRepository.findByOrderItemId(item.getId()).isPresent())
                                     .build())
                             .toList();
                     return ShopOrderResponse.builder()
