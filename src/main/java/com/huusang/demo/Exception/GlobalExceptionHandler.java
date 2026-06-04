@@ -98,6 +98,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        try {
+            java.io.PrintWriter pw = new java.io.PrintWriter(new java.io.FileWriter("error.log", true));
+            pw.println("-------------------------");
+            pw.println(LocalDateTime.now() + " - Exception: " + ex.getMessage());
+            ex.printStackTrace(pw);
+            pw.close();
+        } catch (Exception ignored) {}
+
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())

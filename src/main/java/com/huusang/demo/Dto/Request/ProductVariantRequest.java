@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 
@@ -28,6 +29,12 @@ public class ProductVariantRequest {
     
     @NotBlank(message = "SKU không được để trống")
     private String sku;
+
+    /**
+     * Ảnh của biến thể — optional.
+     * Dùng với multipart/form-data khi gọi endpoint addVariant.
+     */
+    private MultipartFile image;
 
     // Getters and Setters
     public String getVariantName() {
@@ -60,5 +67,13 @@ public class ProductVariantRequest {
 
     public void setSku(String sku) {
         this.sku = sku;
+    }
+
+    public MultipartFile getImage() {
+        return image;
+    }
+
+    public void setImage(MultipartFile image) {
+        this.image = image;
     }
 }

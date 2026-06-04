@@ -44,6 +44,9 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
     // Tìm variant theo SKU
     Optional<ProductVariant> findBySku(String sku);
 
+    // Tìm variant theo productId và variantName
+    Optional<ProductVariant> findByProductIdAndVariantName(Long productId, String variantName);
+
     // Kiểm tra variant có trong đơn hàng active không (chặn xóa variant)
     @Query("SELECT COUNT(oi) > 0 FROM OrderItem oi " +
            "WHERE oi.productVariant.id = :variantId " +

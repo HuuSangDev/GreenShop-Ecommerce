@@ -18,4 +18,5 @@ public class UserResponse {
     String phoneNumber;
     boolean active;
     Set<RoleResponse> roles;
+    java.time.LocalDateTime createdAt;
 }

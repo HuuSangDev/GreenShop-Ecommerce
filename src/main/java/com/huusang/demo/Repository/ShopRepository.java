@@ -4,6 +4,8 @@ import com.huusang.demo.Entity.Shop;
 import com.huusang.demo.Entity.User;
 import com.huusang.demo.Enum.ShopStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -17,6 +19,9 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
 
     // Tìm shop theo owner ID (UUID)
     Optional<Shop> findByOwnerId(String ownerId);
+
+    @Query("SELECT s FROM Shop s JOIN FETCH s.owner WHERE s.owner.id = :ownerId")
+    Optional<Shop> findByOwnerIdWithOwner(@Param("ownerId") String ownerId);
 
     // Tìm shop theo owner Email — dùng khi JWT subject là email
     Optional<Shop> findByOwnerEmail(String email);

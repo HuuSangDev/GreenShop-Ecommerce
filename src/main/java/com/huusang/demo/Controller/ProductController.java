@@ -147,13 +147,13 @@ public class ProductController {
 
     // ==================== VARIANT ENDPOINTS ====================
 
-    @PostMapping("/{productId}/variants")
+    @PostMapping(value = "/{productId}/variants", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('SELLER')")
     public ApiResponse<ProductVariantResponse> addVariant(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long productId,
-            @Valid @RequestBody ProductVariantRequest request) {
+            @ModelAttribute @Valid ProductVariantRequest request) {
 
         return ApiResponse.<ProductVariantResponse>builder()
                 .code(201)
@@ -162,12 +162,12 @@ public class ProductController {
                 .build();
     }
 
-    @PutMapping("/variants/{variantId}")
+    @PutMapping(value = "/variants/{variantId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('SELLER')")
     public ApiResponse<ProductVariantResponse> updateVariant(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long variantId,
-            @Valid @RequestBody ProductVariantUpdateRequest request) {
+            @ModelAttribute @Valid ProductVariantUpdateRequest request) {
 
         return ApiResponse.<ProductVariantResponse>builder()
                 .message("Cập nhật variant thành công")

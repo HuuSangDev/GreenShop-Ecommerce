@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import java.math.BigDecimal;
 
 @Builder
@@ -22,6 +24,8 @@ public class ProductVariantUpdateRequest {
     private Integer stockQuantity;
     
     private String sku;
+
+    private MultipartFile image;
 
     // Getters and Setters
     public String getVariantName() {
@@ -54,5 +58,13 @@ public class ProductVariantUpdateRequest {
 
     public void setSku(String sku) {
         this.sku = sku;
+    }
+
+    public MultipartFile getImage() {
+        return image;
+    }
+
+    public void setImage(MultipartFile image) {
+        this.image = image;
     }
 }

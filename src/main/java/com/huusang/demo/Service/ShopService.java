@@ -167,9 +167,10 @@ public class ShopService {
     /**
      * SELLER: Lấy thông tin gian hàng của chính mình.
      */
+    @Transactional(readOnly = true)
     public ShopResponse getMyShop(String userEmail) {
         User user = getUserByEmail(userEmail);
-        Shop shop = shopRepository.findByOwnerId(user.getId())
+        Shop shop = shopRepository.findByOwnerIdWithOwner(user.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.SHOP_NOT_FOUND));
         return toShopResponse(shop);
     }

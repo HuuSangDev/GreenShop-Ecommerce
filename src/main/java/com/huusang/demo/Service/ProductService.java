@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -90,11 +91,15 @@ public class ProductService {
      * image được lấy từ request.getImage() — null = giữ nguyên ảnh cũ.
      */
     @Transactional
-    public ProductResponse updateProduct(Long productId, ProductUpdateRequest request, String userId) {
+    public ProductResponse updateProduct(Long productId, ProductUpdateRequest request, String email) {
+        // Tìm User bằng email từ JWT
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Tài khoản không tồn tại"));
+
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
 
-        if (!product.getShop().getOwner().getId().equals(userId)) {
+        if (!product.getShop().getOwner().getId().equals(user.getId())) {
             throw new UnauthorizedException("Bạn không có quyền sửa sản phẩm này");
         }
 
@@ -124,12 +129,16 @@ public class ProductService {
      * Chỉ chủ shop mới được xóa
      */
     @Transactional
-    public void deleteProduct(Long productId, String userId) {
+    public void deleteProduct(Long productId, String email) {
+        // Tìm User bằng email từ JWT
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Tài khoản không tồn tại"));
+
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
 
         // Kiểm tra quyền sở hữu
-        if (!product.getShop().getOwner().getId().equals(userId)) {
+        if (!product.getShop().getOwner().getId().equals(user.getId())) {
             throw new UnauthorizedException("Bạn không có quyền xóa sản phẩm này");
         }
 
@@ -164,12 +173,16 @@ public class ProductService {
      * Thêm variant mới vào sản phẩm
      */
     @Transactional
-    public ProductVariantResponse addVariant(Long productId, ProductVariantRequest request, String userId) {
+    public ProductVariantResponse addVariant(Long productId, ProductVariantRequest request, String email) {
+        // Tìm User bằng email từ JWT
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Tài khoản không tồn tại"));
+
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
 
         // Kiểm tra quyền sở hữu
-        if (!product.getShop().getOwner().getId().equals(userId)) {
+        if (!product.getShop().getOwner().getId().equals(user.getId())) {
             throw new UnauthorizedException("Bạn không có quyền thêm variant cho sản phẩm này");
         }
 
@@ -178,12 +191,19 @@ public class ProductService {
             throw new BadRequestException("SKU đã tồn tại");
         }
 
+        // Upload ảnh biến thể nếu có
+        String imageUrl = null;
+        if (request.getImage() != null && !request.getImage().isEmpty()) {
+            imageUrl = fileStorageService.storeFile(request.getImage(), "products/variants");
+        }
+
         ProductVariant variant = ProductVariant.builder()
                 .product(product)
                 .variantName(request.getVariantName())
                 .price(request.getPrice())
                 .stockQuantity(request.getStockQuantity())
                 .sku(request.getSku())
+                .imageUrl(imageUrl)
                 .build();
 
         variant = variantRepository.save(variant);
@@ -194,12 +214,16 @@ public class ProductService {
      * Cập nhật variant
      */
     @Transactional
-    public ProductVariantResponse updateVariant(Long variantId, ProductVariantUpdateRequest request, String userId) {
+    public ProductVariantResponse updateVariant(Long variantId, ProductVariantUpdateRequest request, String email) {
+        // Tìm User bằng email từ JWT
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Tài khoản không tồn tại"));
+
         ProductVariant variant = variantRepository.findById(variantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy variant"));
 
         // Kiểm tra quyền sở hữu
-        if (!variant.getProduct().getShop().getOwner().getId().equals(userId)) {
+        if (!variant.getProduct().getShop().getOwner().getId().equals(user.getId())) {
             throw new UnauthorizedException("Bạn không có quyền sửa variant này");
         }
 
@@ -223,6 +247,14 @@ public class ProductService {
             variant.setSku(request.getSku());
         }
 
+        // Cập nhật ảnh nếu có
+        if (request.getImage() != null && !request.getImage().isEmpty()) {
+            if (variant.getImageUrl() != null) {
+                fileStorageService.deleteFile(variant.getImageUrl());
+            }
+            variant.setImageUrl(fileStorageService.storeFile(request.getImage(), "products/variants"));
+        }
+
         variant = variantRepository.save(variant);
         return productMapper.toVariantResponse(variant);
     }
@@ -231,12 +263,16 @@ public class ProductService {
      * Xóa variant (chặn nếu đang trong đơn hàng active)
      */
     @Transactional
-    public void deleteVariant(Long variantId, String userId) {
+    public void deleteVariant(Long variantId, String email) {
+        // Tìm User bằng email từ JWT
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Tài khoản không tồn tại"));
+
         ProductVariant variant = variantRepository.findById(variantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy variant"));
 
         // Kiểm tra quyền sở hữu
-        if (!variant.getProduct().getShop().getOwner().getId().equals(userId)) {
+        if (!variant.getProduct().getShop().getOwner().getId().equals(user.getId())) {
             throw new UnauthorizedException("Bạn không có quyền xóa variant này");
         }
 
@@ -252,12 +288,16 @@ public class ProductService {
      * Cập nhật tồn kho thủ công
      */
     @Transactional
-    public ProductVariantResponse updateStock(Long variantId, Integer quantity, String userId) {
+    public ProductVariantResponse updateStock(Long variantId, Integer quantity, String email) {
+        // Tìm User bằng email từ JWT
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Tài khoản không tồn tại"));
+
         ProductVariant variant = variantRepository.findById(variantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy variant"));
 
         // Kiểm tra quyền sở hữu
-        if (!variant.getProduct().getShop().getOwner().getId().equals(userId)) {
+        if (!variant.getProduct().getShop().getOwner().getId().equals(user.getId())) {
             throw new UnauthorizedException("Bạn không có quyền cập nhật tồn kho");
         }
 

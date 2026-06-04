@@ -46,6 +46,7 @@ public class ProductMapper {
                 .price(variant.getPrice())
                 .stockQuantity(variant.getStockQuantity())
                 .sku(variant.getSku())
+                .imageUrl(variant.getImageUrl())
                 .build();
     }
 

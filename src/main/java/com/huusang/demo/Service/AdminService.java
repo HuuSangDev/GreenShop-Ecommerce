@@ -42,6 +42,7 @@ public class AdminService {
     WithdrawalRepository withdrawalRepository;
     AdminWalletRepository adminWalletRepository;
     ShopWalletRepository shopWalletRepository;
+    CommissionRepository commissionRepository;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // ANALYTICS & DASHBOARD
@@ -72,13 +73,37 @@ public class AdminService {
         // Tổng shop
         long totalShops = shopRepository.count();
 
-        // Top sản phẩm (mock data - cần implement logic thực tế)
-        List<Map<String, Object>> topProducts = new ArrayList<>();
-        Map<String, Object> product1 = new HashMap<>();
-        product1.put("name", "iPhone 15 Pro Max");
-        product1.put("sales", 100);
-        product1.put("revenue", 3499000000L);
-        topProducts.add(product1);
+        // Tính toán top sản phẩm bán chạy từ dữ liệu thực tế
+        Map<Product, Integer> productSalesMap = new HashMap<>();
+        Map<Product, BigDecimal> productRevenueMap = new HashMap<>();
+
+        shopOrderRepository.findAll().stream()
+                .filter(so -> so.getStatus() == OrderStatus.COMPLETED || so.getStatus() == OrderStatus.DELIVERED)
+                .forEach(shopOrder -> {
+                    if (shopOrder.getOrderItems() != null) {
+                        shopOrder.getOrderItems().forEach(item -> {
+                            if (item.getProductVariant() != null && item.getProductVariant().getProduct() != null) {
+                                Product product = item.getProductVariant().getProduct();
+                                productSalesMap.put(product, productSalesMap.getOrDefault(product, 0) + item.getQuantity());
+                                BigDecimal revenue = item.getPriceAtBuy().multiply(BigDecimal.valueOf(item.getQuantity()));
+                                productRevenueMap.put(product, productRevenueMap.getOrDefault(product, BigDecimal.ZERO).add(revenue));
+                            }
+                        });
+                    }
+                });
+
+        List<Map<String, Object>> topProducts = productSalesMap.entrySet().stream()
+                .sorted(Map.Entry.<Product, Integer>comparingByValue().reversed())
+                .limit(5)
+                .map(entry -> {
+                    Product product = entry.getKey();
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("name", product.getProductName());
+                    map.put("sales", entry.getValue());
+                    map.put("revenue", productRevenueMap.get(product));
+                    return map;
+                })
+                .collect(Collectors.toList());
 
         // Đơn hàng gần đây
         List<Map<String, Object>> recentOrders = orderRepository.findAll().stream()
@@ -124,7 +149,7 @@ public class AdminService {
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 Map<String, Object> data = new HashMap<>();
-                data.put("label", "Day " + (7 - i));
+                data.put("label", date.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM")));
                 data.put("revenue", revenue);
                 chartData.add(data);
             }
@@ -143,7 +168,7 @@ public class AdminService {
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 Map<String, Object> data = new HashMap<>();
-                data.put("label", "Month " + (12 - i));
+                data.put("label", "T" + date.getMonthValue() + "/" + date.getYear());
                 data.put("revenue", revenue);
                 chartData.add(data);
             }
@@ -346,6 +371,26 @@ public class AdminService {
                     .status(withdrawal.getStatus())
                     .requestedAt(withdrawal.getRequestedAt())
                     .resolvedAt(withdrawal.getResolvedAt())
+                    .build();
+        });
+    }
+
+    @Transactional(readOnly = true)
+    public Page<com.huusang.demo.Dto.Response.CommissionResponse> getCommissions(Pageable pageable) {
+        Page<Commission> commissions = commissionRepository.findAll(pageable);
+        return commissions.map(commission -> {
+            Shop shop = commission.getShop();
+            ShopOrder shopOrder = commission.getShopOrder();
+            return com.huusang.demo.Dto.Response.CommissionResponse.builder()
+                    .id(commission.getId())
+                    .shopOrderId(shopOrder.getId())
+                    .shopId(shop.getId())
+                    .shopName(shop.getShopName())
+                    .grossAmount(commission.getGrossAmount())
+                    .commissionRate(commission.getCommissionRate())
+                    .commissionAmt(commission.getCommissionAmt())
+                    .netAmount(commission.getNetAmount())
+                    .createdAt(shopOrder.getOrder().getCreatedAt())
                     .build();
         });
     }

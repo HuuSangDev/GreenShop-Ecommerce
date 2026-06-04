@@ -187,6 +187,18 @@ public class AdminController {
     // WALLET MANAGEMENT
     // ═══════════════════════════════════════════════════════════════════════════
 
+    @GetMapping("/commissions")
+    public ApiResponse<Page<CommissionResponse>> getCommissions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        log.info("Admin: Getting commission history - page: {}, size: {}", page, size);
+        Pageable pageable = PageRequest.of(page, size);
+        return ApiResponse.<Page<CommissionResponse>>builder()
+                .result(adminService.getCommissions(pageable))
+                .message("Lấy lịch sử tiền phí thành công")
+                .build();
+    }
+
     @GetMapping("/wallet")
     public ApiResponse<AdminWalletResponse> getAdminWallet() {
         log.info("Admin: Getting admin wallet info");

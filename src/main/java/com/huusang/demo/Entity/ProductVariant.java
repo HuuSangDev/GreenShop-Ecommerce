@@ -33,6 +33,9 @@ public class ProductVariant {
 
     String sku; // Mã định danh kho (Stock Keeping Unit)
 
+    @Column(name = "image_url")
+    String imageUrl; // Ảnh riêng của biến thể (optional)
+
     /**
      * Khối lượng (gram) — dùng để tính phí ship GHN.
      * Nullable: nếu null → OrderService tự gán DEFAULT_WEIGHT_PER_ITEM_GRAM (200g).
