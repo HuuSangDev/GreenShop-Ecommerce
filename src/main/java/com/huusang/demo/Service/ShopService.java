@@ -503,7 +503,15 @@ public class ShopService {
      * SELLER: Lấy danh sách ShopOrder của shop mình, filter theo status tuỳ chọn.
      * GET /shops/me/orders?status=PENDING
      */
+    @Transactional
     public List<SellerShopOrderResponse> getMyShopOrders(String userEmail, OrderStatus status) {
+        // Tự động dọn dẹp dữ liệu rác nếu có dòng nào mang trạng thái lỗi/trống trong DB
+        try {
+            shopOrderRepository.sanitizeStatuses();
+        } catch (Exception e) {
+            log.warn("Failed to sanitize shop_orders statuses: {}", e.getMessage());
+        }
+
         Shop shop = getShopByOwnerEmail(userEmail);
         List<ShopOrder> shopOrders = shopOrderRepository.findByShopIdOrderByIdDesc(shop.getId());
 

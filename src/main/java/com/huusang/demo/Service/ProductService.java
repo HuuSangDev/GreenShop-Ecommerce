@@ -158,6 +158,15 @@ public class ProductService {
     }
 
     /**
+     * Lấy số lượng đã bán của sản phẩm
+     */
+    public Integer getSoldCount(Long productId) {
+        Product product = productRepository.findByIdAndAvailableTrue(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+        return product.getSoldCount() != null ? product.getSoldCount() : 0;
+    }
+
+    /**
      * Lấy danh sách sản phẩm của 1 shop (có phân trang)
      */
     public Page<ProductResponse> getProductsByShop(Long shopId, String status, int page, int size) {

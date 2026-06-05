@@ -88,6 +88,18 @@ public class ProductController {
                 .build();
     }
 
+    /**
+     * GET /products/{id}/sold-count
+     * Trả về số lượng đã bán của sản phẩm.
+     */
+    @GetMapping("/{id}/sold-count")
+    public ApiResponse<Integer> getSoldCount(@PathVariable Long id) {
+        return ApiResponse.<Integer>builder()
+                .message("Số lượng đã bán")
+                .result(productService.getSoldCount(id))
+                .build();
+    }
+
     @GetMapping("/shop/{shopId}")
     public ApiResponse<Page<ProductResponse>> getProductsByShop(
             @PathVariable Long shopId,
