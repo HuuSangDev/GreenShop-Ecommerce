@@ -34,6 +34,9 @@ public class User {
     @Column(name = "full_name")
     String fullName;
 
+    @Column(name = "avatar")
+    String avatar;
+
     boolean active = true;
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(

@@ -11,8 +11,10 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -37,6 +39,9 @@ public class ShopService {
     ShopOrderRepository shopOrderRepository;
     CommissionRepository commissionRepository;
     OrderRepository orderRepository;
+    CartRepository cartRepository;
+    CartItemRepository cartItemRepository;
+    FileStorageService fileStorageService;
 
     /** Tỷ lệ commission sàn thu (2%) */
     static final BigDecimal COMMISSION_RATE = new BigDecimal("2.00");
@@ -172,6 +177,23 @@ public class ShopService {
         User user = getUserByEmail(userEmail);
         Shop shop = shopRepository.findByOwnerIdWithOwner(user.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.SHOP_NOT_FOUND));
+        return toShopResponse(shop);
+    }
+
+    @Transactional
+    public ShopResponse uploadShopBanner(String userEmail, MultipartFile file) {
+        User user = getUserByEmail(userEmail);
+        Shop shop = shopRepository.findByOwnerIdWithOwner(user.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.SHOP_NOT_FOUND));
+
+        String bannerUrl = fileStorageService.storeFile(file, "shops");
+
+        if (shop.getBannerUrl() != null) {
+            fileStorageService.deleteFile(shop.getBannerUrl());
+        }
+
+        shop.setBannerUrl(bannerUrl);
+        shop = shopRepository.save(shop);
         return toShopResponse(shop);
     }
 
@@ -441,9 +463,10 @@ public class ShopService {
                 .shopName(shop.getShopName())
                 .description(shop.getDescription())
                 .bannerUrl(shop.getBannerUrl())
-                .logoUrl(shop.getLogoUrl())
+                .logoUrl(shop.getOwner() != null ? shop.getOwner().getAvatar() : shop.getLogoUrl())
                 .rating(shop.getRating())
                 .createdAt(shop.getCreatedAt())
+                .ownerId(shop.getOwner() != null ? shop.getOwner().getId() : null)
                 .ownerEmail(shop.getOwner().getEmail())
                 .ownerFullName(shop.getOwner().getFullName())
                 .build();

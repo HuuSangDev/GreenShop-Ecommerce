@@ -21,6 +21,7 @@ public class ShopResponse {
     LocalDateTime createdAt;
 
     // Thông tin chủ shop
+    String ownerId;
     String ownerEmail;
     String ownerFullName;
 }

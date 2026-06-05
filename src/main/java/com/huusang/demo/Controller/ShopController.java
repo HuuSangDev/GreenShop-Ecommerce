@@ -17,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -136,6 +137,19 @@ public class ShopController {
         ShopResponse response = shopService.updateShop(getEmail(jwt), request);
         return ApiResponse.<ShopResponse>builder()
                 .message("Cập nhật gian hàng thành công")
+                .result(response)
+                .build();
+    }
+
+    @PostMapping("/me/banner")
+    @PreAuthorize("hasRole('SELLER')")
+    public ApiResponse<ShopResponse> uploadShopBanner(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam("file") MultipartFile file) {
+        
+        ShopResponse response = shopService.uploadShopBanner(getEmail(jwt), file);
+        return ApiResponse.<ShopResponse>builder()
+                .message("Cập nhật ảnh bìa gian hàng thành công")
                 .result(response)
                 .build();
     }

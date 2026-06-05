@@ -44,10 +44,11 @@ public class MessageController {
     // ─────────────────────────────────────────────────────────────────────────
     @GetMapping("/conversations")
     public ApiResponse<List<ConversationResponse>> getMyConversations(
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) String role) {
         return ApiResponse.<List<ConversationResponse>>builder()
                 .message("Danh sách hội thoại của tôi")
-                .result(messageService.getMyConversations(getEmail(jwt)))
+                .result(messageService.getMyConversations(getEmail(jwt), role))
                 .build();
     }
 

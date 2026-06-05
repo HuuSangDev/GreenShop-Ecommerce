@@ -20,6 +20,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.web.multipart.MultipartFile;
+import com.huusang.demo.Dto.Request.UpdateProfileRequest;
+
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE,makeFinal = true)
@@ -29,8 +32,35 @@ public class UserService {
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
     RoleRepository roleRepository;
+    FileStorageService fileStorageService;
 
+    public UserResponse updateProfile(String email, UpdateProfileRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
+        if (request.getFullName() != null) user.setFullName(request.getFullName());
+        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
+        // Có thể mở rộng thêm setAddress nếu Entity User có address. Hiện tại User.java không có address.
+
+        user = userRepository.save(user);
+        return userMapper.toUserResponse(user);
+    }
+
+    public UserResponse uploadAvatar(String email, MultipartFile file) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        String avatarUrl = fileStorageService.storeFile(file, "avatars");
+
+        // Xóa ảnh cũ
+        if (user.getAvatar() != null) {
+            fileStorageService.deleteFile(user.getAvatar());
+        }
+
+        user.setAvatar(avatarUrl);
+        user = userRepository.save(user);
+        return userMapper.toUserResponse(user);
+    }
 
     public UserResponse createUser(UserCreationRequest request)
     {

@@ -53,56 +53,68 @@ public class MessageService {
             throw new AppException(ErrorCode.CHAT_PARTICIPANT_INVALID);
         }
 
-        // Kiểm tra xem đã có cuộc hội thoại nào giữa 2 người chưa
+        // Kiểm tra xem đã có cuộc hội thoại nào giữa 2 người chưa (cả 2 chiều)
         Optional<Conversation> existing = conversationRepository.findBetweenUsers(currentUser.getId(), otherUser.getId());
-        Conversation conversation;
 
         if (existing.isPresent()) {
-            conversation = existing.get();
-            log.info("Found existing conversation: id={}", conversation.getId());
+            log.info("Found existing conversation: id={}", existing.get().getId());
+            return mapToConversationResponse(existing.get(), currentUser);
+        }
+
+        // Xác định ai là buyer, ai là seller
+        boolean otherHasShop  = shopRepository.existsByOwnerId(otherUser.getId());
+        boolean currentHasShop = shopRepository.existsByOwnerId(currentUser.getId());
+
+        User buyer;
+        User seller;
+
+        if (otherHasShop && !currentHasShop) {
+            buyer  = currentUser;
+            seller = otherUser;
+        } else if (currentHasShop && !otherHasShop) {
+            buyer  = otherUser;
+            seller = currentUser;
         } else {
-            // Xác định ai là buyer, ai là seller
-            User buyer;
-            User seller;
+            // Mặc định: người gọi là buyer, người kia là seller
+            buyer  = currentUser;
+            seller = otherUser;
+        }
 
-            // Nếu user kia có cửa hàng -> user kia là seller, mình là buyer
-            boolean otherHasShop = shopRepository.existsByOwnerId(otherUser.getId());
-            // Nếu mình có cửa hàng -> mình là seller, user kia là buyer
-            boolean currentHasShop = shopRepository.existsByOwnerId(currentUser.getId());
-
-            if (otherHasShop && !currentHasShop) {
-                buyer = currentUser;
-                seller = otherUser;
-            } else if (currentHasShop && !otherHasShop) {
-                buyer = otherUser;
-                seller = currentUser;
-            } else {
-                // Mặc định: mình là buyer, đối tác là seller
-                buyer = currentUser;
-                seller = otherUser;
-            }
-
-            conversation = Conversation.builder()
+        try {
+            Conversation conversation = Conversation.builder()
                     .buyer(buyer)
                     .seller(seller)
                     .lastMessageAt(LocalDateTime.now())
                     .build();
-
-            conversation = conversationRepository.save(conversation);
+            conversation = conversationRepository.saveAndFlush(conversation);
             log.info("Created new conversation: id={}, buyer={}, seller={}",
                     conversation.getId(), buyer.getEmail(), seller.getEmail());
-        }
+            return mapToConversationResponse(conversation, currentUser);
 
-        return mapToConversationResponse(conversation, currentUser);
+        } catch (Exception e) {
+            // Duplicate key — conversation đã được tạo bởi request song song, fetch lại
+            log.warn("Duplicate conversation between {} and {}, fetching existing...", currentUser.getId(), otherUser.getId());
+            Conversation fallback = conversationRepository.findBetweenUsers(currentUser.getId(), otherUser.getId())
+                    .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+            return mapToConversationResponse(fallback, currentUser);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // 2. GET MY CONVERSATIONS
     // ─────────────────────────────────────────────────────────────────────────
     @Transactional(readOnly = true)
-    public List<ConversationResponse> getMyConversations(String currentUserEmail) {
+    public List<ConversationResponse> getMyConversations(String currentUserEmail, String role) {
         User currentUser = resolveUser(currentUserEmail);
-        List<Conversation> conversations = conversationRepository.findAllByUserOrderByLastMessageAtDesc(currentUser);
+        List<Conversation> conversations;
+
+        if ("BUYER".equalsIgnoreCase(role)) {
+            conversations = conversationRepository.findByBuyerOrderByLastMessageAtDesc(currentUser);
+        } else if ("SELLER".equalsIgnoreCase(role)) {
+            conversations = conversationRepository.findBySellerOrderByLastMessageAtDesc(currentUser);
+        } else {
+            conversations = conversationRepository.findAllByUserOrderByLastMessageAtDesc(currentUser);
+        }
 
         return conversations.stream()
                 .map(conv -> mapToConversationResponse(conv, currentUser))
