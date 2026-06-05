@@ -113,11 +113,30 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             Pageable pageable
     );
 
-    // Admin: Lấy sản phẩm không bị ẩn (available = true và hidden = false)
     @Query("""
            SELECT p FROM Product p
            WHERE p.hidden = false
            ORDER BY p.createdAt DESC
            """)
     Page<Product> findByHiddenFalse(Pageable pageable);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE Product p SET p.soldCount = p.soldCount + :quantity WHERE p.id = :productId")
+    void incrementSoldCount(@Param("productId") Long productId, @Param("quantity") int quantity);
+
+    @Query("""
+           SELECT p FROM Product p
+           WHERE p.shop.id = :shopId
+           AND (
+               :status = 'all' OR
+               (:status = 'active' AND p.hidden = false AND p.available = true AND p.stockQuantity > 0) OR
+               (:status = 'out_of_stock' AND p.hidden = false AND p.available = true AND (p.stockQuantity IS NULL OR p.stockQuantity <= 0)) OR
+               (:status = 'hidden' AND (p.hidden = true OR p.available = false))
+           )
+           """)
+    Page<Product> findProductsByShopAndStatus(
+            @Param("shopId") Long shopId,
+            @Param("status") String status,
+            Pageable pageable
+    );
 }

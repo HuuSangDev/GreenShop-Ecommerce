@@ -29,6 +29,8 @@ public class VoucherService {
     private final VoucherUsageRepository voucherUsageRepository;
     private final ShopRepository shopRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
+    private final CartItemRepository cartItemRepository;
 
     // ==================== HELPER ====================
 
@@ -115,7 +117,26 @@ public class VoucherService {
                 .active(true)
                 .build();
 
-        return toResponse(voucherRepository.save(voucher));
+        voucher = voucherRepository.save(voucher);
+
+        // Notify all users about the new voucher
+        List<User> users = userRepository.findAll(); // Depending on scale, we might need a batch process or different approach
+        String title = shop != null ? "Voucher mới từ " + shop.getShopName() : "Voucher hệ thống mới";
+        String content = "Nhập mã " + voucher.getCode() + " để nhận ưu đãi!";
+        for (User u : users) {
+            // Không gửi thông báo cho chính shop tạo
+            if (shop != null && u.getId().equals(shop.getOwner().getId())) continue;
+            
+            notificationService.sendNotification(
+                    u,
+                    com.huusang.demo.Enum.NotificationType.NEW_VOUCHER,
+                    title,
+                    content,
+                    voucher.getId()
+            );
+        }
+
+        return toResponse(voucher);
     }
 
     /**
@@ -206,10 +227,36 @@ public class VoucherService {
      * Voucher user có thể dùng cho đơn hàng hiện tại
      * Bao gồm: voucher toàn sàn + voucher của shop đang mua
      */
-    public List<VoucherResponse> getAvailableVouchers(BigDecimal orderAmount, Long shopId) {
+    public List<VoucherResponse> getAvailableVouchers(BigDecimal orderAmount, Long shopId, List<String> cartItemIds) {
         String userId = getCurrentUserId();
+        
+        List<Long> shopIds = new java.util.ArrayList<>();
+        if (shopId != null) {
+            shopIds.add(shopId);
+        }
+        
+        if (cartItemIds != null && !cartItemIds.isEmpty()) {
+            List<com.huusang.demo.Entity.CartItem> cartItems = cartItemRepository.findByIdInWithDetails(cartItemIds);
+            for (com.huusang.demo.Entity.CartItem item : cartItems) {
+                if (item.getProduct() != null && item.getProduct().getShop() != null) {
+                    Long sId = item.getProduct().getShop().getId();
+                    if (!shopIds.contains(sId)) {
+                        shopIds.add(sId);
+                    }
+                }
+            }
+        }
+
         return voucherRepository
-                .findAvailableVouchers(LocalDateTime.now(), orderAmount, shopId, userId)
+                .findAvailableVouchers(LocalDateTime.now(), orderAmount, shopIds.isEmpty() ? null : shopIds, userId)
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    /**
+     * Lấy tất cả voucher active cho trang Voucher (không cần điều kiện)
+     */
+    public List<VoucherResponse> getPublicVouchers() {
+        return voucherRepository.findAllActiveVouchers()
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 

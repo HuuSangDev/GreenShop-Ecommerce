@@ -1,9 +1,9 @@
 package com.huusang.demo.Dto.Response;
 
+import com.huusang.demo.Enum.NotificationType;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -11,13 +11,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class WithdrawalResponse {
+public class NotificationResponse {
     String id;
-    BigDecimal amount;
-    String status;
+    NotificationType type;
+    String title;
+    String content;
+    String referenceId;
+    boolean isRead;
     LocalDateTime createdAt;
-    Long shopId;
-    String shopName;
-    String type;
-    String note;
 }

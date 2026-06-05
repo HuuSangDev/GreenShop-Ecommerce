@@ -39,6 +39,7 @@ public class MessageService {
     UserRepository userRepository;
     ShopRepository shopRepository;
     SimpMessagingTemplate messagingTemplate; // WebSocket push
+    NotificationService notificationService;
 
     // ─────────────────────────────────────────────────────────────────────────
     // 1. GET OR CREATE CONVERSATION
@@ -187,6 +188,16 @@ public class MessageService {
         messagingTemplate.convertAndSend(
                 "/topic/conversation." + conversation.getId(),
                 response
+        );
+
+        // Ghi nhận thông báo mới cho người nhận
+        String finalSenderName = currentUser.getFullName() != null && !currentUser.getFullName().isBlank() ? currentUser.getFullName() : currentUser.getEmail();
+        notificationService.sendNotification(
+                receiver,
+                com.huusang.demo.Enum.NotificationType.NEW_MESSAGE,
+                "Tin nhắn mới",
+                "Bạn có tin nhắn mới từ " + finalSenderName,
+                conversation.getId().toString()
         );
 
         log.info("Message sent: id={}, convId={}, sender={}", message.getId(), conversation.getId(), currentUser.getEmail());

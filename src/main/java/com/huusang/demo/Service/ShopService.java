@@ -42,6 +42,8 @@ public class ShopService {
     CartRepository cartRepository;
     CartItemRepository cartItemRepository;
     FileStorageService fileStorageService;
+    NotificationService notificationService;
+    AdminWalletRepository adminWalletRepository;
 
     /** Tỷ lệ commission sàn thu (2%) */
     static final BigDecimal COMMISSION_RATE = new BigDecimal("2.00");
@@ -310,11 +312,21 @@ public class ShopService {
         Withdrawal withdrawal = Withdrawal.builder()
                 .shop(shop)
                 .amount(request.getAmount())
-                .status(WithdrawalStatus.APPROVED)
-                .requestedAt(LocalDateTime.now())
-                .resolvedAt(LocalDateTime.now())
+                .type(com.huusang.demo.Enum.TransactionType.WITHDRAWAL)
+                .status(com.huusang.demo.Enum.WithdrawalStatus.APPROVED)
+                .note(request.getNote() != null ? request.getNote() : "Shop rút tiền")
+                .createdAt(LocalDateTime.now())
                 .build();
         withdrawalRepository.save(withdrawal);
+
+        // Thông báo rút tiền thành công
+        notificationService.sendNotification(
+                shop.getOwner(),
+                com.huusang.demo.Enum.NotificationType.WITHDRAWAL_SUCCESS,
+                "Rút tiền thành công",
+                "Yêu cầu rút " + request.getAmount() + " VND của bạn đã thành công.",
+                withdrawal.getId()
+        );
 
         log.info("Shop {} đã rút {} VND thành công (tự động)", shop.getShopName(), request.getAmount());
         return toWithdrawalResponse(withdrawal);
@@ -325,7 +337,7 @@ public class ShopService {
      */
     public List<WithdrawalResponse> getWithdrawalHistory(String userEmail) {
         Shop shop = getShopByOwnerEmail(userEmail);
-        return withdrawalRepository.findByShopIdOrderByRequestedAtDesc(shop.getId())
+        return withdrawalRepository.findByShopIdOrderByCreatedAtDesc(shop.getId())
                 .stream().map(this::toWithdrawalResponse).collect(Collectors.toList());
     }
 
@@ -360,20 +372,7 @@ public class ShopService {
         }).collect(Collectors.toList());
     }
 
-    /**
-     * [DEPRECATED] Method này không còn được sử dụng vì rút tiền tự động.
-     * Giữ lại để tương thích API cũ nếu cần.
-     */
-    @Deprecated
-    @Transactional
-    public WithdrawalResponse processWithdrawal(String withdrawalId, ProcessWithdrawalRequest request) {
-        // Tất cả withdrawal đều tự động APPROVED rồi, method này không còn ý nghĩa
-        Withdrawal withdrawal = withdrawalRepository.findById(withdrawalId)
-                .orElseThrow(() -> new AppException(ErrorCode.SHOP_WITHDRAWAL_NOT_FOUND));
-        
-        log.warn("processWithdrawal called but withdrawals are now auto-approved. withdrawalId={}", withdrawalId);
-        return toWithdrawalResponse(withdrawal);
-    }
+    // Đã xóa processWithdrawal do không còn sử dụng.
 
     // ─────────────────────────────────────────────────────────────────────────
     //  PRIVATE HELPERS
@@ -487,9 +486,10 @@ public class ShopService {
         return WithdrawalResponse.builder()
                 .id(w.getId())
                 .amount(w.getAmount())
-                .status(w.getStatus())
-                .requestedAt(w.getRequestedAt())
-                .resolvedAt(w.getResolvedAt())
+                .status(w.getStatus() != null ? w.getStatus().name() : null)
+                .createdAt(w.getCreatedAt())
+                .note(w.getNote())
+                .type(w.getType() != null ? w.getType().name() : null)
                 .shopId(w.getShop().getId())
                 .shopName(w.getShop().getShopName())
                 .build();
@@ -563,6 +563,17 @@ public class ShopService {
         // ── Đồng bộ trạng thái về Order chính ─────────
         syncOrderStatus(shopOrder.getOrder());
 
+        // Gửi thông báo cho người mua (ORDER_STATUS_CHANGED)
+        if (shopOrder.getOrder() != null && shopOrder.getOrder().getBuyer() != null) {
+            notificationService.sendNotification(
+                    shopOrder.getOrder().getBuyer(),
+                    com.huusang.demo.Enum.NotificationType.ORDER_STATUS_CHANGED,
+                    "Cập nhật đơn hàng",
+                    "Đơn hàng #" + shopOrderId + " của bạn từ shop " + shop.getShopName() + " đã chuyển sang trạng thái: " + next,
+                    shopOrderId.toString()
+            );
+        }
+
         return toSellerShopOrderResponse(shopOrder);
     }
 
@@ -603,6 +614,19 @@ public class ShopService {
         wallet.setBalance(wallet.getBalance().add(netAmount));
         wallet.setTotalEarned(wallet.getTotalEarned().add(netAmount));
         shopWalletRepository.save(wallet);
+
+        // Cộng commission vào ví Admin
+        AdminWallet adminWallet = adminWalletRepository.findFirstByOrderByIdAsc()
+                .orElseGet(() -> adminWalletRepository.save(AdminWallet.builder()
+                        .id("W_ADMIN_01")
+                        .balance(BigDecimal.ZERO)
+                        .totalEarned(BigDecimal.ZERO)
+                        .totalWithdrawn(BigDecimal.ZERO)
+                        .build()));
+        
+        adminWallet.setBalance(adminWallet.getBalance().add(commissionAmt));
+        adminWallet.setTotalEarned(adminWallet.getTotalEarned().add(commissionAmt));
+        adminWalletRepository.save(adminWallet);
 
         log.info("Settle ShopOrder #{}: gross={}, commission={}({}%), net={} → credited to shop {}",
                 shopOrder.getId(), gross, commissionAmt, COMMISSION_RATE,

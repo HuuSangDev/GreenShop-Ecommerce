@@ -44,11 +44,13 @@ public class OrderService {
     UserRepository           userRepository;
     VoucherRepository        voucherRepository;
     ReviewRepository         reviewRepository;
+    ProductRepository        productRepository;
 
     // ─── Services ─────────────────────────────────────────────────────────────
     SePayService     sePayService;
     ShippingService  shippingService;
     VoucherService   voucherService;
+    NotificationService notificationService;
 
     /**
      * Cân nặng mặc định (gram) khi sản phẩm không khai báo weight.
@@ -592,7 +594,8 @@ public class OrderService {
                     }
 
                     variantRepository.deductStock(variantId, qty);
-                    log.info("Stock deducted (SEPAY): variantId={}, qty={}", variantId, qty);
+                    productRepository.incrementSoldCount(locked.getProduct().getId(), qty);
+                    log.info("Stock deducted and soldCount incremented (SEPAY): variantId={}, qty={}", variantId, qty);
                 });
 
         // 5. Update Payment → SUCCESS
@@ -604,6 +607,20 @@ public class OrderService {
         // 6. Update Order → PAID
         order.setStatus(OrderStatus.PAID);
         orderRepository.save(order);
+
+        // Thông báo cho từng seller (NEW_ORDER) khi SEPAY thanh toán xong
+        List<ShopOrder> shopOrders = shopOrderRepository.findByOrderId(order.getId());
+        for (ShopOrder so : shopOrders) {
+            if (so.getShop() != null && so.getShop().getOwner() != null) {
+                notificationService.sendNotification(
+                        so.getShop().getOwner(),
+                        com.huusang.demo.Enum.NotificationType.NEW_ORDER,
+                        "Đơn hàng mới",
+                        "Bạn có đơn hàng mới (đã thanh toán SEPAY) từ " + order.getBuyer().getEmail(),
+                        so.getId().toString()
+                );
+            }
+        }
 
         // 7. Clear cart
         String buyerId = order.getBuyer().getId();
@@ -755,6 +772,17 @@ public class OrderService {
             log.info("ShopOrder created: id={}, shopId={}, gross={}, discount={}, net={}, ship={}, method={}",
                     savedShopOrder.getId(), shop.getId(), shopGross, shopDiscount, shopTotal, shopShippingFee, paymentMethod);
 
+            // Gửi thông báo cho seller nếu là COD
+            if (paymentMethod == PaymentMethod.COD && shop.getOwner() != null) {
+                notificationService.sendNotification(
+                        shop.getOwner(),
+                        com.huusang.demo.Enum.NotificationType.NEW_ORDER,
+                        "Đơn hàng mới",
+                        "Bạn có đơn hàng mới (COD) từ " + savedOrder.getBuyer().getEmail(),
+                        savedShopOrder.getId().toString()
+                );
+            }
+
             List<OrderItemResponse> itemResponses = new ArrayList<>();
 
             for (CartItem item : shopItems) {
@@ -781,7 +809,8 @@ public class OrderService {
 
                 if (paymentMethod == PaymentMethod.COD) {
                     variantRepository.deductStock(variant.getId(), qty);
-                    log.info("Stock deducted (COD): variantId={}, qty={}", variant.getId(), qty);
+                    productRepository.incrementSoldCount(item.getProductVariant().getProduct().getId(), qty);
+                    log.info("Stock deducted and soldCount incremented (COD): variantId={}, qty={}", variant.getId(), qty);
                 }
 
                 itemResponses.add(OrderItemResponse.builder()

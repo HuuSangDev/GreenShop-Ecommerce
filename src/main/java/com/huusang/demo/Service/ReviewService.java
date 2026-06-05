@@ -40,6 +40,7 @@ public class ReviewService {
     ShopRepository shopRepository;
     FileStorageService fileStorageService;
     ObjectMapper objectMapper;
+    NotificationService notificationService;
 
     // ─── CREATE ───────────────────────────────────────────────────────────────
     @Transactional
@@ -84,6 +85,16 @@ public class ReviewService {
 
         log.info("Review created: reviewId={}, productId={}, userId={}, rating={}, images={}",
                 review.getId(), product.getId(), user.getId(), request.getRating(), imageUrls.size());
+
+        if (product.getShop() != null && product.getShop().getOwner() != null) {
+            notificationService.sendNotification(
+                    product.getShop().getOwner(),
+                    com.huusang.demo.Enum.NotificationType.NEW_REVIEW,
+                    "Đánh giá mới",
+                    "Sản phẩm " + product.getProductName() + " vừa nhận được một đánh giá " + request.getRating() + " sao.",
+                    product.getId().toString()
+            );
+        }
 
         return toReviewResponse(review);
     }

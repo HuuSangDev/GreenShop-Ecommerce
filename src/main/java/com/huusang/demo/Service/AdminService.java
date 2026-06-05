@@ -108,7 +108,7 @@ public class AdminService {
         // Đơn hàng gần đây
         List<Map<String, Object>> recentOrders = orderRepository.findAll().stream()
                 .sorted((o1, o2) -> o2.getCreatedAt().compareTo(o1.getCreatedAt()))
-                .limit(5)
+                .limit(50)
                 .map(order -> {
                     Map<String, Object> orderMap = new HashMap<>();
                     orderMap.put("orderId", "ORD" + order.getId());
@@ -335,6 +335,16 @@ public class AdminService {
         wallet.setTotalWithdrawn(wallet.getTotalWithdrawn().add(request.getAmount()));
         adminWalletRepository.save(wallet);
 
+        // Lưu lịch sử giao dịch
+        Withdrawal transaction = Withdrawal.builder()
+                .type(com.huusang.demo.Enum.TransactionType.WITHDRAWAL)
+                .amount(request.getAmount())
+                .status(com.huusang.demo.Enum.WithdrawalStatus.APPROVED)
+                .note(request.getNote() != null ? request.getNote() : "Rút tiền từ ví Admin")
+                .createdAt(LocalDateTime.now())
+                .build();
+        withdrawalRepository.save(transaction);
+
         log.info("Admin withdrew {} VND", request.getAmount());
         return toAdminWalletResponse(wallet);
     }
@@ -358,6 +368,11 @@ public class AdminService {
     }
 
     @Transactional(readOnly = true)
+    public Page<Withdrawal> getAdminTransactions(Pageable pageable) {
+        return withdrawalRepository.findByShopIsNull(pageable);
+    }
+
+    @Transactional(readOnly = true)
     public Page<WithdrawalResponse> getSellerWithdrawals(Pageable pageable) {
         Page<Withdrawal> withdrawals = withdrawalRepository.findAll(pageable);
         return withdrawals.map(withdrawal -> {
@@ -368,9 +383,10 @@ public class AdminService {
                     .shopId(shop.getId())
                     .shopName(shop.getShopName())
                     .amount(withdrawal.getAmount())
-                    .status(withdrawal.getStatus())
-                    .requestedAt(withdrawal.getRequestedAt())
-                    .resolvedAt(withdrawal.getResolvedAt())
+                    .status(withdrawal.getStatus() != null ? withdrawal.getStatus().name() : null)
+                    .createdAt(withdrawal.getCreatedAt())
+                    .note(withdrawal.getNote())
+                    .type(withdrawal.getType() != null ? withdrawal.getType().name() : null)
                     .build();
         });
     }
@@ -408,11 +424,16 @@ public class AdminService {
     }
 
     private AdminWalletResponse toAdminWalletResponse(AdminWallet wallet) {
+        long deposits = withdrawalRepository.countByShopIsNullAndType(com.huusang.demo.Enum.TransactionType.DEPOSIT);
+        long withdrawals = withdrawalRepository.countByShopIsNullAndType(com.huusang.demo.Enum.TransactionType.WITHDRAWAL);
+
         return AdminWalletResponse.builder()
                 .id(wallet.getId())
                 .balance(wallet.getBalance())
                 .totalEarned(wallet.getTotalEarned())
                 .totalWithdrawn(wallet.getTotalWithdrawn())
+                .totalDepositCount(deposits)
+                .totalWithdrawCount(withdrawals)
                 .build();
     }
 }

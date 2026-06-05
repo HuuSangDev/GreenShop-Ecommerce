@@ -172,8 +172,8 @@ public class AdminController {
             map.put("shopName", wr.getShopName());
             map.put("amount", wr.getAmount());
             map.put("status", wr.getStatus());
-            map.put("requestedAt", wr.getRequestedAt());
-            map.put("resolvedAt", wr.getResolvedAt());
+            map.put("createdAt", wr.getCreatedAt());
+            map.put("note", wr.getNote());
             return map;
         });
         
@@ -216,6 +216,18 @@ public class AdminController {
         return ApiResponse.<AdminWalletResponse>builder()
                 .result(response)
                 .message("Rút tiền thành công")
+                .build();
+    }
+
+    @GetMapping("/wallet/transactions")
+    public ApiResponse<Page<com.huusang.demo.Entity.Withdrawal>> getAdminTransactions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        log.info("Admin: Getting admin transaction history");
+        Pageable pageable = PageRequest.of(page, size);
+        return ApiResponse.<Page<com.huusang.demo.Entity.Withdrawal>>builder()
+                .result(adminService.getAdminTransactions(pageable))
+                .message("Lấy lịch sử giao dịch ví admin thành công")
                 .build();
     }
 

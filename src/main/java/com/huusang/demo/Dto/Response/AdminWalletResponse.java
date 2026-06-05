@@ -16,4 +16,7 @@ public class AdminWalletResponse {
     BigDecimal balance;
     BigDecimal totalEarned;
     BigDecimal totalWithdrawn;
+    
+    long totalDepositCount;
+    long totalWithdrawCount;
 }

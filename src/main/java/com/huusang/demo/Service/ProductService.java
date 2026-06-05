@@ -33,6 +33,7 @@ public class ProductService {
     private final ProductMapper productMapper;
     private final FileStorageService fileStorageService;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
 
     @Transactional
@@ -159,12 +160,14 @@ public class ProductService {
     /**
      * Lấy danh sách sản phẩm của 1 shop (có phân trang)
      */
-    public Page<ProductResponse> getProductsByShop(Long shopId, int page, int size) {
+    public Page<ProductResponse> getProductsByShop(Long shopId, String status, int page, int size) {
         Shop shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy shop"));
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Product> products = productRepository.findByShopAndAvailableTrue(shop, pageable);
+        
+        String filterStatus = (status != null && !status.trim().isEmpty()) ? status.trim().toLowerCase() : "all";
+        Page<Product> products = productRepository.findProductsByShopAndStatus(shopId, filterStatus, pageable);
 
         return products.map(productMapper::toResponse);
     }
@@ -391,6 +394,16 @@ public class ProductService {
         product.setHidden(true);
         product.setHideReason(reason != null ? reason : "");
         productRepository.save(product);
+
+        if (product.getShop() != null && product.getShop().getOwner() != null) {
+            notificationService.sendNotification(
+                    product.getShop().getOwner(),
+                    com.huusang.demo.Enum.NotificationType.PRODUCT_HIDDEN,
+                    "Sản phẩm bị ẩn",
+                    "Sản phẩm " + product.getProductName() + " của bạn đã bị admin ẩn vì lý do: " + (reason != null ? reason : "Không có lý do cụ thể"),
+                    product.getId().toString()
+            );
+        }
     }
 
     @Transactional

@@ -35,7 +35,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, String> {
               AND v.expiresAt >= :now
               AND (v.maxUsage IS NULL OR v.usedCount < v.maxUsage)
               AND v.minOrderAmt <= :orderAmt
-              AND (v.shop IS NULL OR v.shop.id = :shopId)
+              AND (v.shop IS NULL OR (:#{#shopIds == null || #shopIds.isEmpty()} = false AND v.shop.id IN :shopIds))
               AND NOT EXISTS (
                   SELECT vu FROM VoucherUsage vu
                   WHERE vu.voucher = v AND vu.user.id = :userId
@@ -45,7 +45,14 @@ public interface VoucherRepository extends JpaRepository<Voucher, String> {
     List<Voucher> findAvailableVouchers(
             @Param("now") LocalDateTime now,
             @Param("orderAmt") BigDecimal orderAmt,
-            @Param("shopId") Long shopId,
+            @Param("shopIds") List<Long> shopIds,
             @Param("userId") String userId
     );
+
+    @Query("""
+            SELECT v FROM Voucher v
+            WHERE v.active = true
+            ORDER BY v.expiresAt ASC
+            """)
+    List<Voucher> findAllActiveVouchers();
 }

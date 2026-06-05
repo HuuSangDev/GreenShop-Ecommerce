@@ -91,12 +91,13 @@ public class ProductController {
     @GetMapping("/shop/{shopId}")
     public ApiResponse<Page<ProductResponse>> getProductsByShop(
             @PathVariable Long shopId,
+            @RequestParam(required = false, defaultValue = "all") String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
         return ApiResponse.<Page<ProductResponse>>builder()
                 .message("Danh sách sản phẩm của shop")
-                .result(productService.getProductsByShop(shopId, page, size))
+                .result(productService.getProductsByShop(shopId, status, page, size))
                 .build();
     }
 

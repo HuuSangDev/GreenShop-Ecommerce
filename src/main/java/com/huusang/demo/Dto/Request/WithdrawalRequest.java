@@ -23,4 +23,6 @@ public class WithdrawalRequest {
     String bankName;
 
     String accountHolderName;
+
+    String note;
 }

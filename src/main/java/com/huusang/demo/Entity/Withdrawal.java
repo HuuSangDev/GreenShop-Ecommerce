@@ -1,5 +1,6 @@
 package com.huusang.demo.Entity;
 
+import com.huusang.demo.Enum.TransactionType;
 import com.huusang.demo.Enum.WithdrawalStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,8 +25,12 @@ public class Withdrawal {
     protected void onCreate() { this.id = UUID.randomUUID().toString(); }
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id", nullable = false)
+    @JoinColumn(name = "shop_id", nullable = true)
     Shop shop;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    TransactionType type;
 
     @Column(nullable = false, precision = 15, scale = 2)
     BigDecimal amount;
@@ -34,11 +39,9 @@ public class Withdrawal {
     @Column(nullable = false, length = 20)
     WithdrawalStatus status;
 
-    @Column(name = "requested_at")
-    LocalDateTime requestedAt;
+    @Column(columnDefinition = "TEXT")
+    String note;
 
-    @Column(name = "resolved_at")
-    LocalDateTime resolvedAt;
-
-
+    @Column(name = "created_at")
+    LocalDateTime createdAt;
 }

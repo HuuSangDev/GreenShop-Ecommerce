@@ -87,11 +87,20 @@ public class VoucherController {
     @GetMapping("/available")
     public ApiResponse<List<VoucherResponse>> getAvailableVouchers(
             @RequestParam BigDecimal orderAmount,
-            @RequestParam(required = false) Long shopId) {
+            @RequestParam(required = false) Long shopId,
+            @RequestParam(required = false) List<String> cartItemIds) {
 
         return ApiResponse.<List<VoucherResponse>>builder()
                 .message("Danh sách voucher khả dụng")
-                .result(voucherService.getAvailableVouchers(orderAmount, shopId))
+                .result(voucherService.getAvailableVouchers(orderAmount, shopId, cartItemIds))
+                .build();
+    }
+
+    @GetMapping("/public")
+    public ApiResponse<List<VoucherResponse>> getPublicVouchers() {
+        return ApiResponse.<List<VoucherResponse>>builder()
+                .message("Danh sách tất cả voucher")
+                .result(voucherService.getPublicVouchers())
                 .build();
     }
 
