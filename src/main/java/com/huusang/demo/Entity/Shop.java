@@ -37,13 +37,16 @@ public class Shop {
     @Column(name = "logo_url")
     String logoUrl;
 
+    @Builder.Default
     Double rating = 0.0;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
+    @Builder.Default
     ShopStatus status = ShopStatus.ACTIVE;
 
     @Column(name = "created_at")
+    @Builder.Default
     LocalDateTime createdAt = LocalDateTime.now();
 
     // ─── Thông tin địa chỉ kho hàng & GHN ────────────────────────────────────

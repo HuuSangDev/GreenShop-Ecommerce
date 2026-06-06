@@ -200,6 +200,27 @@ public class ShopService {
     }
 
     /**
+     * SELLER: Upload logo gian hàng.
+     */
+    @Transactional
+    public ShopResponse uploadShopLogo(String userEmail, MultipartFile file) {
+        User user = getUserByEmail(userEmail);
+        Shop shop = shopRepository.findByOwnerIdWithOwner(user.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.SHOP_NOT_FOUND));
+
+        String logoUrl = fileStorageService.storeFile(file, "shops");
+
+        if (shop.getLogoUrl() != null) {
+            fileStorageService.deleteFile(shop.getLogoUrl());
+        }
+
+        shop.setLogoUrl(logoUrl);
+        shop = shopRepository.save(shop);
+        log.info("Shop {} đã upload logo: {}", shop.getShopName(), logoUrl);
+        return toShopResponse(shop);
+    }
+
+    /**
      * SELLER: Cập nhật tên, mô tả, banner, logo gian hàng.
      */
     @Transactional
@@ -462,12 +483,13 @@ public class ShopService {
                 .shopName(shop.getShopName())
                 .description(shop.getDescription())
                 .bannerUrl(shop.getBannerUrl())
-                .logoUrl(shop.getOwner() != null ? shop.getOwner().getAvatar() : shop.getLogoUrl())
+                .logoUrl(shop.getLogoUrl())   // ← dùng đúng logo của shop
                 .rating(shop.getRating())
+                .status(shop.getStatus() != null ? shop.getStatus().name() : null)
                 .createdAt(shop.getCreatedAt())
                 .ownerId(shop.getOwner() != null ? shop.getOwner().getId() : null)
-                .ownerEmail(shop.getOwner().getEmail())
-                .ownerFullName(shop.getOwner().getFullName())
+                .ownerEmail(shop.getOwner() != null ? shop.getOwner().getEmail() : null)
+                .ownerFullName(shop.getOwner() != null ? shop.getOwner().getFullName() : null)
                 .build();
     }
 

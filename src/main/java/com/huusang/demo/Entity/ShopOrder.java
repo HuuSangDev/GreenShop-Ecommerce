@@ -31,23 +31,21 @@ public class ShopOrder {
     @JoinColumn(name = "shop_id", nullable = false)
     Shop shop;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
-
-    // Trạng thái độc lập của gói hàng (Shop A đang giao, Shop B có thể đã hủy)
+    // Trạng thái độc lập của gói hàng
     @Enumerated(EnumType.STRING)
-    OrderStatus status; // PENDING, PREPARING, SHIPPING, DELIVERED, CANCELLED
+    OrderStatus status;
 
     // Tiền ship riêng của gói hàng này
     @Column(name = "shipping_fee")
     BigDecimal shippingFee;
 
-    // Tổng tiền hàng của riêng Shop này (Để đối soát trả tiền cho Shop)
+    // Tổng tiền hàng của riêng Shop này
     @Column(name = "shop_total_amount")
     BigDecimal shopTotalAmount;
 
     // 1 Gói hàng sẽ chứa nhiều sản phẩm (OrderItem)
     @OneToMany(mappedBy = "shopOrder", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     List<OrderItem> orderItems = new ArrayList<>();
 }
+

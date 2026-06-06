@@ -18,6 +18,7 @@ public class ShopResponse {
     String bannerUrl;
     String logoUrl;
     Double rating;
+    String status;          // ← ACTIVE | SUSPENDED | PENDING (ShopStatus)
     LocalDateTime createdAt;
 
     // Thông tin chủ shop

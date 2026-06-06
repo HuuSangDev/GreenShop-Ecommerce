@@ -61,21 +61,21 @@ public class OrderController {
      */
     @PostMapping("/api/v1/orders")
     @ResponseStatus(HttpStatus.OK)
-    public ApiResponse<OrderResponse> checkout(
+    public ApiResponse<java.util.List<OrderResponse>> checkout(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CheckoutRequest request) {
 
-        OrderResponse order = orderService.processMultiVendorCheckout(getUserEmail(jwt), request);
+        java.util.List<OrderResponse> orders = orderService.processMultiVendorCheckout(getUserEmail(jwt), request);
 
         String message = switch (request.getPaymentMethod()) {
-            case COD   -> "Đặt hàng thành công";
+            case COD   -> "Đặt hàng thành công " + orders.size() + " đơn";
             case SEPAY -> "Đơn hàng đã tạo — vui lòng quét QR để thanh toán";
         };
 
-        return ApiResponse.<OrderResponse>builder()
+        return ApiResponse.<java.util.List<OrderResponse>>builder()
                 .code(200)
                 .message(message)
-                .result(order)
+                .result(orders)
                 .build();
     }
 

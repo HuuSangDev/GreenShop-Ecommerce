@@ -155,6 +155,25 @@ public class ShopController {
     }
 
     /**
+     * POST /shops/me/logo
+     * Upload logo gian hàng (file ảnh).
+     * Quyền: SELLER
+     */
+    @PostMapping("/me/logo")
+    @PreAuthorize("hasRole('SELLER')")
+    public ApiResponse<ShopResponse> uploadShopLogo(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam("file") MultipartFile file) {
+
+        ShopResponse response = shopService.uploadShopLogo(getEmail(jwt), file);
+        return ApiResponse.<ShopResponse>builder()
+                .message("Cập nhật logo gian hàng thành công")
+                .result(response)
+                .build();
+    }
+
+
+    /**
      * GET /shops/{id}
      * Lấy thông tin public của shop (khách xem) — không cần đăng nhập.
      * Quyền: PUBLIC

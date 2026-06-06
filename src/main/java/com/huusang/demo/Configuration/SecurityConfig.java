@@ -54,7 +54,7 @@ public class SecurityConfig {
                         // Product public endpoints
                         .requestMatchers("GET", "/products/**").permitAll()
                         // SePay webhook — gọi từ server SePay, không có JWT user
-                        .requestMatchers("/payments/sepay/webhook").permitAll()
+                        .requestMatchers("/api/v1/payments/sepay/webhook").permitAll()
                         // Thông tin public của shop — khách xem không cần đăng nhập
                         .requestMatchers("GET", "/shops/{id}").permitAll()
                         // Ảnh tĩnh local — phục vụ qua /images/**, không cần JWT

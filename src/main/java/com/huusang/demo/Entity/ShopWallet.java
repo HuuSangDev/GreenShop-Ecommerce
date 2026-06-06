@@ -23,12 +23,15 @@ public class ShopWallet {
     Shop shop;
 
     @Column(precision = 15, scale = 2)
+    @Builder.Default
     BigDecimal balance = BigDecimal.ZERO;
 
     @Column(name = "total_earned", precision = 15, scale = 2)
+    @Builder.Default
     BigDecimal totalEarned = BigDecimal.ZERO;
 
     @Column(name = "total_withdrawn", precision = 15, scale = 2)
+    @Builder.Default
     BigDecimal totalWithdrawn = BigDecimal.ZERO;
 
     @PrePersist

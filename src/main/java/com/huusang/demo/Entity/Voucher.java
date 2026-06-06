@@ -40,12 +40,14 @@ public class Voucher {
     BigDecimal maxDiscount;
 
     @Column(name = "min_order_amt", precision = 15, scale = 2)
+    @Builder.Default
     BigDecimal minOrderAmt = BigDecimal.ZERO;
 
     @Column(name = "max_usage")
     Integer maxUsage;
 
     @Column(name = "used_count")
+    @Builder.Default
     Integer usedCount = 0;
 
     @Column(name = "starts_at", nullable = false)
@@ -55,6 +57,7 @@ public class Voucher {
     LocalDateTime expiresAt;
 
     @Column(nullable = false)
+    @Builder.Default
     boolean active = true;
 
     @PrePersist

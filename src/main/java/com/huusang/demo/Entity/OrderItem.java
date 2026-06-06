@@ -31,5 +31,6 @@ public class OrderItem {
     BigDecimal priceAtBuy;          // Giá chốt tại thời điểm mua
 
     @Column(name = "discount_amount", precision = 15, scale = 2)
+    @Builder.Default
     BigDecimal discountAmount = BigDecimal.ZERO; // Phần voucher phân bổ (prorating)
 }

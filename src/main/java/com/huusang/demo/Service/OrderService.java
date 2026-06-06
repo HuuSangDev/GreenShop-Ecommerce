@@ -58,6 +58,12 @@ public class OrderService {
      */
     static final int DEFAULT_WEIGHT_PER_ITEM_GRAM = 200;
 
+    /**
+     * Phí ship tối đa mỗi shop (VNĐ).
+     * GHN có thể tính cao hơn nhưng sẽ bị cắp tại mức này.
+     */
+    static final int MAX_SHIPPING_FEE_PER_SHOP = 20_000;
+
     // ═══════════════════════════════════════════════════════════════════════════
     // STEP 0 — CHECKOUT PREVIEW
     // POST /api/v1/checkouts/preview
@@ -146,15 +152,15 @@ public class OrderService {
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
-     * Đặt hàng Multi-Vendor — phân nhánh theo paymentMethod.
+     * Đặt hàng Multi-Vendor — mỗi Shop tạo ra 1 Order độc lập với mã riêng.
      * <p>
      * COD  → deduct stock ngay, order = PENDING
      * SEPAY → KHÔNG deduct stock, order = PENDING_PAYMENT, tạo Payment + QR URL
      * <p>
-     * finalAmount = totalAmount (tiền hàng) + shippingFee - discountAmount
+     * Trả về List<OrderResponse> — N orders cho N shops.
      */
     @Transactional
-    public OrderResponse processMultiVendorCheckout(String userEmail, CheckoutRequest request) {
+    public List<OrderResponse> processMultiVendorCheckout(String userEmail, CheckoutRequest request) {
 
         // ─── 0. Resolve user ─────────────────────────────────────────────────────
         User buyer = resolveUser(userEmail);
@@ -172,102 +178,195 @@ public class OrderService {
             throw new AppException(ErrorCode.ORDER_INVALID_PAYMENT_METHOD);
         }
 
-        // ─── 3. Tính tiền hàng — backend tự tính, không trust frontend ───────────
-        BigDecimal totalAmount = calcTotalAmount(cartItems);
-
-        // ─── 4. Tính phí ship THẬT cho từng shop ─────────────────────────────────
+        // ─── 3. Nhóm items theo từng shop ─────────────────────────────────────────
         Map<Shop, List<CartItem>> itemsByShop = groupItemsByShop(cartItems);
+
+        // ─── 4. Tính phí ship cho từng shop ──────────────────────────────────────
         Map<Shop, BigDecimal> shippingFeeByShop = calcShippingFeeByShop(
                 itemsByShop, request.getToDistrictId(), request.getToWardCode()
         );
-        BigDecimal totalShippingFee = shippingFeeByShop.values().stream()
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // ─── 5. Tính giảm giá từ voucher ─────────────────────────────────────────
+        // ─── 5. Tính tổng tiền hàng toàn giỏ (để phân bổ voucher) ────────────────
+        BigDecimal grandTotal = calcTotalAmount(cartItems);
+
+        // ─── 6. Validate voucher một lần cho toàn đơn ────────────────────────────
         Voucher appliedVoucher = null;
-        BigDecimal discountAmount = BigDecimal.ZERO;
+        BigDecimal totalDiscount = BigDecimal.ZERO;
         if (request.getVoucherCode() != null && !request.getVoucherCode().isBlank()) {
             appliedVoucher = voucherService.validateVoucher(
-                    request.getVoucherCode(), totalAmount, buyer.getId()
+                    request.getVoucherCode(), grandTotal, buyer.getId()
             );
-            discountAmount = voucherService.calculateDiscount(appliedVoucher, totalAmount);
-            log.info("Checkout: voucher='{}' applied, discount={}", request.getVoucherCode(), discountAmount);
+            totalDiscount = voucherService.calculateDiscount(appliedVoucher, grandTotal);
+            log.info("Checkout: voucher='{}' applied, discount={}", request.getVoucherCode(), totalDiscount);
         }
 
-        // finalAmount = tiền hàng + ship - giảm giá (tối thiểu 0)
-        BigDecimal finalAmount = totalAmount.add(totalShippingFee).subtract(discountAmount).max(BigDecimal.ZERO);
+        // ─── 7. Tạo 1 Order riêng biệt cho mỗi Shop ─────────────────────────────
+        List<OrderResponse> orderResponses = new ArrayList<>();
+        boolean firstVoucher = true; // Chỉ mark used 1 lần
 
-        // ─── 6. Tạo Order ─────────────────────────────────────────────────────────
-        OrderStatus initialStatus = (paymentMethod == PaymentMethod.COD)
-                ? OrderStatus.PENDING
-                : OrderStatus.PENDING_PAYMENT;
+        for (Map.Entry<Shop, List<CartItem>> entry : itemsByShop.entrySet()) {
+            Shop shop = entry.getKey();
+            List<CartItem> shopItems = entry.getValue();
 
-        Order savedOrder = orderRepository.save(Order.builder()
-                .buyer(buyer)
-                .totalAmount(totalAmount)
-                .discountAmount(discountAmount)
-                .finalAmount(finalAmount)
-                .status(initialStatus)
-                .paymentMethod(paymentMethod.name())
-                .build());
+            // Tiền hàng của shop này
+            BigDecimal shopGross = shopItems.stream()
+                    .map(item -> item.getProductVariant().getPrice()
+                            .multiply(BigDecimal.valueOf(item.getQuantity())))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        log.info("Order created: orderId={}, buyer={}, method={}, goods={}, ship={}, discount={}, final={}",
-                savedOrder.getId(), buyer.getId(), paymentMethod,
-                totalAmount, totalShippingFee, discountAmount, finalAmount);
+            // Phân bổ discount theo tỷ lệ tiền hàng
+            BigDecimal shopDiscount = BigDecimal.ZERO;
+            if (grandTotal.compareTo(BigDecimal.ZERO) > 0 && totalDiscount.compareTo(BigDecimal.ZERO) > 0) {
+                shopDiscount = totalDiscount
+                        .multiply(shopGross)
+                        .divide(grandTotal, 2, java.math.RoundingMode.HALF_UP);
+            }
 
-        // ─── 7. Tạo ShopOrder + OrderItem cho từng shop (kèm shippingFee thật) ───
-        List<ShopOrderResponse> shopOrderResponses = buildShopOrders(
-                savedOrder, itemsByShop, shippingFeeByShop, paymentMethod
-        );
+            BigDecimal shopShippingFee = shippingFeeByShop.getOrDefault(shop, BigDecimal.ZERO);
+            BigDecimal shopFinal = shopGross.subtract(shopDiscount).add(shopShippingFee).max(BigDecimal.ZERO);
 
-        // ─── 8. Đánh dấu voucher đã dùng (sau khi order commit) ──────────────────
-        if (appliedVoucher != null) {
-            voucherService.markVoucherUsed(appliedVoucher.getId(), buyer.getId(), savedOrder);
-        }
+            OrderStatus initialStatus = (paymentMethod == PaymentMethod.COD)
+                    ? OrderStatus.PENDING
+                    : OrderStatus.PENDING_PAYMENT;
 
-        // ─── 9. Xử lý theo paymentMethod ─────────────────────────────────────────
-        String paymentUrl = null;
-
-        if (paymentMethod == PaymentMethod.COD) {
-            cartItemRepository.deleteAllInBatch(cartItems);
-            log.info("COD checkout done: orderId={}, cartItemsDeleted={}", savedOrder.getId(), cartItems.size());
-
-        } else {
-            // SEPAY: QR URL dùng finalAmount (tiền hàng + ship - discount)
-            String transactionRef = "ORDER" + savedOrder.getId();
-            paymentUrl = sePayService.generateQrUrl(finalAmount, transactionRef);
-
-            paymentRepository.save(Payment.builder()
-                    .order(savedOrder)
-                    .method(PaymentMethod.SEPAY)
-                    .status(PaymentStatus.PENDING)
-                    .amount(finalAmount)           // ← finalAmount, không phải totalAmount
-                    .transactionRef(transactionRef)
-                    .checkoutUrl(paymentUrl)
+            // Tạo Order riêng cho shop này
+            Order savedOrder = orderRepository.save(Order.builder()
+                    .buyer(buyer)
+                    .totalAmount(shopGross)
+                    .discountAmount(shopDiscount)
+                    .finalAmount(shopFinal)
+                    .status(initialStatus)
+                    .paymentMethod(paymentMethod.name())
                     .build());
 
-            log.info("SEPAY checkout created: orderId={}, transactionRef={}, amount={}",
-                    savedOrder.getId(), transactionRef, finalAmount);
+            log.info("Order created: orderId={}, shopId={}, buyer={}, method={}, goods={}, ship={}, discount={}, final={}",
+                    savedOrder.getId(), shop.getId(), buyer.getId(), paymentMethod,
+                    shopGross, shopShippingFee, shopDiscount, shopFinal);
+
+            // Tạo ShopOrder cho Order này
+            ShopOrder savedShopOrder = shopOrderRepository.save(ShopOrder.builder()
+                    .order(savedOrder)
+                    .shop(shop)
+                    .status(initialStatus)
+                    .shopTotalAmount(shopGross.subtract(shopDiscount).max(BigDecimal.ZERO))
+                    .shippingFee(shopShippingFee)
+                    .build());
+
+            // Thông báo seller nếu COD
+            if (paymentMethod == PaymentMethod.COD && shop.getOwner() != null) {
+                notificationService.sendNotification(
+                        shop.getOwner(),
+                        com.huusang.demo.Enum.NotificationType.NEW_ORDER,
+                        "Đơn hàng mới",
+                        "Bạn có đơn hàng mới (COD) từ " + buyer.getEmail(),
+                        savedShopOrder.getId().toString()
+                );
+            }
+
+            // Tạo OrderItem + deduct stock (COD)
+            List<OrderItemResponse> itemResponses = new ArrayList<>();
+            for (CartItem item : shopItems) {
+                ProductVariant variant = item.getProductVariant();
+                BigDecimal priceAtBuy = variant.getPrice();
+                int qty = item.getQuantity();
+
+                // Phân bổ discount xuống từng item
+                BigDecimal itemGross = priceAtBuy.multiply(BigDecimal.valueOf(qty));
+                BigDecimal itemDiscount = BigDecimal.ZERO;
+                if (shopGross.compareTo(BigDecimal.ZERO) > 0 && shopDiscount.compareTo(BigDecimal.ZERO) > 0) {
+                    itemDiscount = shopDiscount
+                            .multiply(itemGross)
+                            .divide(shopGross, 2, java.math.RoundingMode.HALF_UP);
+                }
+
+                OrderItem savedItem = orderItemRepository.save(OrderItem.builder()
+                        .shopOrder(savedShopOrder)
+                        .productVariant(variant)
+                        .quantity(qty)
+                        .priceAtBuy(priceAtBuy)
+                        .discountAmount(itemDiscount)
+                        .build());
+
+                if (paymentMethod == PaymentMethod.COD) {
+                    variantRepository.deductStock(variant.getId(), qty);
+                    productRepository.incrementSoldCount(item.getProductVariant().getProduct().getId(), qty);
+                    log.info("Stock deducted (COD): variantId={}, qty={}", variant.getId(), qty);
+                }
+
+                itemResponses.add(OrderItemResponse.builder()
+                        .orderItemId(savedItem.getId())
+                        .variantId(variant.getId())
+                        .variantName(variant.getVariantName())
+                        .sku(variant.getSku())
+                        .productName(item.getProduct().getProductName())
+                        .productImageUrl(item.getProduct().getImageUrl())
+                        .quantity(qty)
+                        .priceAtBuy(priceAtBuy)
+                        .subtotal(priceAtBuy.multiply(BigDecimal.valueOf(qty)))
+                        .build());
+            }
+
+            // Đánh dấu voucher đã dùng (chỉ lần đầu)
+            if (appliedVoucher != null && firstVoucher) {
+                voucherService.markVoucherUsed(appliedVoucher.getId(), buyer.getId(), savedOrder);
+                firstVoucher = false;
+            }
+
+            // SEPAY: tạo Payment + QR cho từng Order
+            String paymentUrl = null;
+            if (paymentMethod == PaymentMethod.SEPAY) {
+                String transactionRef = "ORDER" + savedOrder.getId();
+                paymentUrl = sePayService.generateQrUrl(shopFinal, transactionRef);
+
+                paymentRepository.save(Payment.builder()
+                        .order(savedOrder)
+                        .method(PaymentMethod.SEPAY)
+                        .status(PaymentStatus.PENDING)
+                        .amount(shopFinal)
+                        .transactionRef(transactionRef)
+                        .checkoutUrl(paymentUrl)
+                        .build());
+
+                log.info("SEPAY checkout created: orderId={}, transactionRef={}, amount={}",
+                        savedOrder.getId(), transactionRef, shopFinal);
+            }
+
+            int shopTotalItems = shopItems.stream().mapToInt(CartItem::getQuantity).sum();
+
+            orderResponses.add(OrderResponse.builder()
+                    .orderId(savedOrder.getId())
+                    .status(initialStatus)
+                    .paymentMethod(paymentMethod)
+                    .totalAmount(shopGross)
+                    .shippingFee(shopShippingFee)
+                    .discountAmount(shopDiscount)
+                    .finalAmount(shopFinal)
+                    .createdAt(savedOrder.getCreatedAt())
+                    .totalShops(1)
+                    .totalItems(shopTotalItems)
+                    .shopOrders(List.of(ShopOrderResponse.builder()
+                            .shopOrderId(savedShopOrder.getId())
+                            .shopId(shop.getId())
+                            .sellerId(shop.getOwner() != null ? shop.getOwner().getId() : null)
+                            .shopName(shop.getShopName())
+                            .status(initialStatus)
+                            .shopTotalAmount(savedShopOrder.getShopTotalAmount())
+                            .shippingFee(shopShippingFee)
+                            .items(itemResponses)
+                            .build()))
+                    .paymentUrl(paymentUrl)
+                    .build());
         }
 
-        // ─── 10. Build response ───────────────────────────────────────────────────
-        int totalItems = cartItems.stream().mapToInt(CartItem::getQuantity).sum();
+        // ─── 8. Xóa giỏ hàng (COD) ───────────────────────────────────────────────
+        if (paymentMethod == PaymentMethod.COD) {
+            cartItemRepository.deleteAllInBatch(cartItems);
+            log.info("COD checkout done: {} orders created, cartItemsDeleted={}", orderResponses.size(), cartItems.size());
+        }
 
-        return OrderResponse.builder()
-                .orderId(savedOrder.getId())
-                .status(initialStatus)
-                .paymentMethod(paymentMethod)
-                .totalAmount(totalAmount)
-                .shippingFee(totalShippingFee)
-                .discountAmount(discountAmount)
-                .finalAmount(finalAmount)
-                .createdAt(savedOrder.getCreatedAt())
-                .totalShops(shopOrderResponses.size())
-                .totalItems(totalItems)
-                .shopOrders(shopOrderResponses)
-                .paymentUrl(paymentUrl)
-                .build();
+        return orderResponses;
     }
+
 
     // ═══════════════════════════════════════════════════════════════════════════
     // GET ORDER BY ID
@@ -695,8 +794,11 @@ public class OrderService {
                         10, 10, 10,   // kích thước mặc định (cm)
                         null          // hàng nhẹ — service_type_id = 2
                 );
-                result.put(shop, BigDecimal.valueOf(fee));
-                log.info("Shipping fee: shopId={}, weight={}g → {}đ", shop.getId(), totalWeightGram, fee);
+                // Cap phí ship tối đa MAX_SHIPPING_FEE_PER_SHOP mỗi shop
+                int cappedFee = Math.min(fee, MAX_SHIPPING_FEE_PER_SHOP);
+                result.put(shop, BigDecimal.valueOf(cappedFee));
+                log.info("Shipping fee: shopId={}, weight={}g, GHN={}đ → capped={}đ",
+                        shop.getId(), totalWeightGram, fee, cappedFee);
 
             } catch (Exception e) {
                 // GHN lỗi không nên block checkout — fallback về 0 + log

@@ -44,21 +44,26 @@ public class Product {
 
     String imageUrl;
 
+    @Builder.Default
     boolean available = true;
 
     @Column(name = "hidden", columnDefinition = "BOOLEAN DEFAULT FALSE")
+    @Builder.Default
     boolean hidden = false;
 
     @Column(name = "hide_reason", columnDefinition = "TEXT")
     String hideReason;
 
     @Column(name = "average_rating", precision = 3, scale = 2)
+    @Builder.Default
     BigDecimal averageRating = BigDecimal.ZERO;
 
     @Column(name = "total_reviews")
+    @Builder.Default
     Integer totalReviews = 0;
 
     @Column(name = "sold_count")
+    @Builder.Default
     Integer soldCount = 0;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)

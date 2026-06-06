@@ -29,14 +29,17 @@ public class Order {
     BigDecimal totalAmount;         // Tổng tiền gốc (trước giảm)
 
     @Column(name = "discount_amount", precision = 15, scale = 2)
+    @Builder.Default
     BigDecimal discountAmount = BigDecimal.ZERO;
 
     @Column(name = "final_amount", nullable = false, precision = 15, scale = 2)
     BigDecimal finalAmount;         // Số tiền thực trả = total - discoun
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     OrderStatus status = OrderStatus.PENDING;
     String paymentMethod;
+    @Builder.Default
     LocalDateTime createdAt = LocalDateTime.now();
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
